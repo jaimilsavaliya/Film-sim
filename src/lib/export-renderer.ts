@@ -3,7 +3,7 @@
  * Renders high-resolution Polaroid, Instax, Editorial Poster, Multi-Image 35mm Film Strip, and Standard Full-Bleed frames.
  */
 
-export type ExportTemplateMode = 'RAW_FRAME' | 'POLAROID' | 'POSTER' | 'FILM_STRIP';
+export type ExportTemplateMode = 'RAW_FRAME' | 'POLAROID' | 'POSTER' | 'FILM_STRIP' | 'CONTACT_SHEET';
 export type PaperTheme = 'WARM_IVORY' | 'PURE_ALABASTER' | 'OBSIDIAN_MATTE';
 export type FilmStripOrientation = 'VERTICAL' | 'HORIZONTAL';
 
@@ -266,6 +266,9 @@ export interface ExportStudioConfig {
   filmStripGap: number; // 12 - 36
   filmStripShowSprockets: boolean;
   filmStripEdgeCode: string;
+  // 8x10 Contact Proof Sheet Options
+  contactSheetTitle?: string;
+  contactSheetHeroIndex?: number;
 }
 
 export interface FilmStripSlotItem {
@@ -390,6 +393,28 @@ export function defaultImageToCanvas(
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   }
   return canvas;
+}
+
+function drawRoundedSprocketHole(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
 }
 
 /**
@@ -1022,6 +1047,166 @@ export function renderExportComposition(
 
         ctx.textAlign = 'right';
         ctx.fillText(`▶ ${frameNum}A`, fx + frameW - 12, totalH - railSize + 18);
+      }
+    });
+  }
+
+  // 5. 8x10" DARKROOM CONTACT SHEET (mm-accurate proof roll layout)
+  if (config.mode === 'CONTACT_SHEET') {
+    const sheetW = 1600;
+    const sheetH = 1980;
+
+    targetCanvas.width = sheetW;
+    targetCanvas.height = sheetH;
+
+    // Darkroom contact sheet easel base
+    ctx.fillStyle = '#090908';
+    ctx.fillRect(0, 0, sheetW, sheetH);
+
+    // Subtle 1px Archival Easel Registration Border Guide
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(23, 23, sheetW - 46, sheetH - 46);
+
+    // Header layout
+    const headerLeft = 84;
+    const headerRight = 1516;
+    const titleY = 56;
+    const subheaderY = 114;
+
+    // Main Title: Elegant Cormorant Garamond Serif
+    ctx.fillStyle = '#EDE9E2';
+    ctx.font = 'italic 42px "Cormorant Garamond", Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const mainTitle = config.contactSheetTitle?.trim() || '35mm Darkroom Contact Sheet — Roll #042';
+    ctx.fillText(mainTitle, headerLeft, titleY);
+
+    // Subheader Line
+    const stockName = stock ? stock.name.toUpperCase() : 'KODAK PORTRA 400';
+    const stockIso = stock ? (stock.iso.replace(/\D/g, '') || '400') : '400';
+    const stockProcess = stock ? (stock.process || 'C-41') : 'C-41';
+    const subheaderText = `EMULSION: ${stockName} (ISO ${stockIso})   ·   PROCESS: ${stockProcess}`;
+
+    ctx.fillStyle = '#7E776E';
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    ctx.fillText(subheaderText, headerLeft, subheaderY);
+
+    // Top Right: PROOF SHEET 8×10" (Golden Amber)
+    ctx.fillStyle = '#E59838';
+    ctx.font = 'bold 13px "JetBrains Mono", monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('PROOF SHEET 8×10"', headerRight, titleY + 4);
+
+    // Top Right: Date stamp (defaults to 'YY MM DD format)
+    const now = new Date();
+    const defaultDateStr = `'${String(now.getFullYear()).slice(-2)} ${String(now.getMonth() + 1).padStart(2, '0')} ${String(now.getDate()).padStart(2, '0')}`;
+    const dateText = (config.polaroidDateStamp?.trim() || defaultDateStr).toUpperCase();
+
+    ctx.fillStyle = '#7E776E';
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    ctx.fillText(dateText, headerRight, subheaderY);
+
+    // Symmetrical 2 Columns × 3 Rows Grid Geometry
+    const colLefts = [84, 820];
+    const stripW = 696;
+    const stripH = 501;
+    const rowTops = [189, 747, 1305];
+
+    const photoPadX = 7;
+    const photoPadTop = 44;
+    const photoW = 682;
+    const photoH = 404;
+
+    // Prepare 6 grid slots from filmStripItems or repeats of primaryImage
+    const items: FilmStripSlotItem[] = filmStripItems && filmStripItems.length > 0
+      ? filmStripItems
+      : [{ id: 'slot-primary', title: 'Frame 01', image: primaryImage }];
+
+    const gridSlots: FilmStripSlotItem[] = items.length >= 6
+      ? items.slice(0, 6)
+      : Array.from({ length: 6 }).map((_, i) => ({
+          id: `slot-${i}`,
+          title: `Frame ${i + 1}`,
+          image: items[i % items.length].image,
+        }));
+
+    const heroIdx = config.contactSheetHeroIndex !== undefined ? config.contactSheetHeroIndex : 1;
+
+    gridSlots.forEach((slot: FilmStripSlotItem, idx: number) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      const stripX = colLefts[col];
+      const stripY = rowTops[row];
+
+      const photoX = stripX + photoPadX;
+      const photoY = stripY + photoPadTop;
+
+      // 1. Film Strip Backing (Dark charcoal film substrate)
+      ctx.fillStyle = '#131211';
+      ctx.fillRect(stripX, stripY, stripW, stripH);
+
+      // 2. Sprocket Holes (13 holes per rail, width 24px, height 14px, corner radius 3px)
+      const holeW = 24;
+      const holeH = 14;
+      const holeRadius = 3;
+      const holeStep = 52;
+      const startHoleX = stripX + 19;
+      const topHoleY = stripY + 15;
+      const bottomHoleY = photoY + photoH + 11;
+
+      ctx.fillStyle = '#070706';
+      for (let i = 0; i < 13; i++) {
+        const hx = startHoleX + i * holeStep;
+        drawRoundedSprocketHole(ctx, hx, topHoleY, holeW, holeH, holeRadius);
+        drawRoundedSprocketHole(ctx, hx, bottomHoleY, holeW, holeH, holeRadius);
+      }
+
+      // 3. Graded 35mm Frame Photo
+      const gradedCell = renderGraded(slot.image, 900);
+      drawImageCover(ctx, gradedCell, photoX, photoY, photoW, photoH);
+
+      // 4. Subtle photo border
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(photoX, photoY, photoW, photoH);
+
+      // 5. Edge Code Rebate Markings (underneath bottom sprocket holes)
+      const frameNum = 21 + idx;
+      ctx.fillStyle = '#C88232';
+      ctx.font = 'bold 12px "JetBrains Mono", monospace';
+      ctx.textBaseline = 'bottom';
+
+      // Left: Film Stock Name
+      ctx.textAlign = 'left';
+      ctx.fillText(stockName, photoX, stripY + stripH - 8);
+
+      // Right: Frame Number with arrow
+      ctx.textAlign = 'right';
+      ctx.fillText(`▶ ${frameNum}A`, photoX + photoW, stripY + stripH - 8);
+
+      // 6. Hand-drawn Red China-Marker / Grease-Pencil Loupe Selection Mark
+      if (heroIdx === idx) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(232, 62, 52, 0.95)';
+        ctx.lineWidth = 5.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(photoX - 10, photoY - 8);
+        ctx.quadraticCurveTo(photoX + photoW * 0.5, photoY - 16, photoX + photoW + 12, photoY - 6);
+        ctx.quadraticCurveTo(photoX + photoW + 18, photoY + photoH * 0.5, photoX + photoW + 10, photoY + photoH + 14);
+        ctx.quadraticCurveTo(photoX + photoW * 0.5, photoY + photoH + 18, photoX - 12, photoY + photoH + 8);
+        ctx.quadraticCurveTo(photoX - 16, photoY + photoH * 0.5, photoX - 10, photoY - 8);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(232, 62, 52, 0.95)';
+        ctx.font = 'bold 18px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('SELECT // PRINT', photoX + 16, photoY + 16);
+        ctx.restore();
       }
     });
   }

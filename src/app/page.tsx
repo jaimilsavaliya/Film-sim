@@ -8,6 +8,7 @@ import EditorCanvas from '@/components/editor/Canvas';
 import ExportStudioModal from '@/components/editor/ExportStudioModal';
 import { useEditorStore } from '@/lib/store';
 import { isRawOrHeicFile, decodeCameraRawOrHeic } from '@/lib/raw-decoder';
+import { parseExifFromFile } from '@/utils/exifParser';
 import { ExportStockMetadata, defaultImageToCanvas } from '@/lib/export-renderer';
 import { 
   ChevronLeft, 
@@ -65,6 +66,8 @@ export default function Home() {
   const isExportStudioOpen = useEditorStore(s => s.isExportStudioOpen);
   const closeExportStudio = useEditorStore(s => s.closeExportStudio);
   const exportStudioInitialMode = useEditorStore(s => s.exportStudioInitialMode);
+  const setParsedExif = useEditorStore(s => s.setParsedExif);
+  const setQuartzDateText = useEditorStore(s => s.setQuartzDateText);
 
   // Map active FilmStock to ExportStockMetadata
   const stockMetadata: ExportStockMetadata | null = selectedFilm ? {
@@ -87,6 +90,10 @@ export default function Home() {
       const ctx = offscreen.getContext('2d');
       if (ctx) {
         ctx.drawImage(mainCanvas, 0, 0, offscreen.width, offscreen.height);
+        const overlayCanvas = document.querySelector('canvas[data-overlay="darkroom"]') as HTMLCanvasElement | null;
+        if (overlayCanvas && overlayCanvas.width > 0 && overlayCanvas.height > 0) {
+          ctx.drawImage(overlayCanvas, 0, 0, offscreen.width, offscreen.height);
+        }
       }
       return offscreen;
     }
@@ -122,6 +129,14 @@ export default function Home() {
     if (!isImage && !isRaw) return;
     
     setIsLoading(true);
+
+    // Auto-extract real camera EXIF metadata from JPEG / TIFF
+    parseExifFromFile(file).then((exif) => {
+      setParsedExif(exif);
+      if (exif.formattedDate) {
+        setQuartzDateText(exif.formattedDate);
+      }
+    }).catch(() => {});
 
     if (isRaw) {
       try {

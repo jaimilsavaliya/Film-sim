@@ -5,6 +5,8 @@ import { useEditorStore } from '@/lib/store';
 import { FilmRenderer } from '@/lib/webgl/renderer';
 import { loadCubeLUT, createIdentityLUT, type LUTData } from '@/lib/webgl/lut-loader';
 import { isRawOrHeicFile, decodeCameraRawOrHeic } from '@/lib/raw-decoder';
+import { parseExifFromFile } from '@/utils/exifParser';
+import { computeCanvasHistogram, zoneSystemColor } from '@/utils/filmEngine';
 import { Camera, Sparkles, UploadCloud } from 'lucide-react';
 
 const MAX_PREVIEW_DIM = 2048;
@@ -31,6 +33,7 @@ function loadSampleImage(
 
 export default function EditorCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rendererRef = useRef<FilmRenderer | null>(null);
@@ -60,6 +63,17 @@ export default function EditorCanvas() {
   const setComparePosition = useEditorStore(s => s.setComparePosition);
   const isLoading = useEditorStore(s => s.isLoading);
   const setIsLoading = useEditorStore(s => s.setIsLoading);
+
+  // Darkroom Add-ons
+  const pushPullStops = useEditorStore(s => s.pushPullStops);
+  const lightLeakStyle = useEditorStore(s => s.lightLeakStyle);
+  const lightLeakIntensity = useEditorStore(s => s.lightLeakIntensity);
+  const quartzDateStamp = useEditorStore(s => s.quartzDateStamp);
+  const quartzDateText = useEditorStore(s => s.quartzDateText);
+  const zoneSystemOverlay = useEditorStore(s => s.zoneSystemOverlay);
+  const setHistogram = useEditorStore(s => s.setHistogram);
+  const setParsedExif = useEditorStore(s => s.setParsedExif);
+  const setQuartzDateText = useEditorStore(s => s.setQuartzDateText);
 
   // Helper to lazily initialize or retrieve the WebGL2 renderer
   const getOrCreateRenderer = useCallback(() => {
@@ -146,6 +160,14 @@ export default function EditorCanvas() {
     canvas.style.width = `${Math.round(displayWidth)}px`;
     canvas.style.height = `${Math.round(displayHeight)}px`;
 
+    const overlay = overlayCanvasRef.current;
+    if (overlay) {
+      overlay.width = renderWidth;
+      overlay.height = renderHeight;
+      overlay.style.width = `${Math.round(displayWidth)}px`;
+      overlay.style.height = `${Math.round(displayHeight)}px`;
+    }
+
     renderer.resize(renderWidth, renderHeight);
     renderer.loadImage(image);
     renderer.render();
@@ -227,20 +249,140 @@ export default function EditorCanvas() {
     };
   }, [selectedFilm, image, getOrCreateRenderer, setIsLoading]);
 
-  // Update render adjustment settings
+  // Render 2D Darkroom Optical Overlay Pass (Light Leaks, 90s Quartz Date-Back, Zone System Map)
+  const renderOverlayPass = useCallback(() => {
+    const overlay = overlayCanvasRef.current;
+    const canvas = canvasRef.current;
+    if (!overlay || !canvas || !image) return;
+
+    if (overlay.width !== canvas.width || overlay.height !== canvas.height) {
+      overlay.width = canvas.width;
+      overlay.height = canvas.height;
+      overlay.style.width = canvas.style.width;
+      overlay.style.height = canvas.style.height;
+    }
+
+    const ctx = overlay.getContext('2d');
+    if (!ctx) return;
+    const w = overlay.width;
+    const h = overlay.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Ansel Adams 11-Zone Exposure Diagnostic Map
+    if (zoneSystemOverlay) {
+      try {
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+        if (gl) {
+          const pixels = new Uint8Array(w * h * 4);
+          (gl as WebGLRenderingContext | WebGL2RenderingContext).readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          const zoneImg = ctx.createImageData(w, h);
+          const zData = zoneImg.data;
+          for (let i = 0; i < pixels.length; i += 4) {
+            const pxIndex = i >> 2;
+            const x = pxIndex % w;
+            const y = (pxIndex / w) | 0;
+            const flippedIdx = ((h - 1 - y) * w + x) * 4;
+
+            const r = pixels[i];
+            const g = pixels[i + 1];
+            const b = pixels[i + 2];
+            const luma = (r * 77 + g * 150 + b * 29) >> 8;
+            const [zr, zg, zb] = zoneSystemColor(luma);
+            zData[flippedIdx] = zr;
+            zData[flippedIdx + 1] = zg;
+            zData[flippedIdx + 2] = zb;
+            zData[flippedIdx + 3] = 255;
+          }
+          ctx.putImageData(zoneImg, 0, 0);
+          return;
+        }
+      } catch (err) {
+        console.error('Zone system map render error:', err);
+      }
+    }
+
+    // Organic Camera Gate Light Leaks
+    if (lightLeakStyle && lightLeakStyle !== 'NONE' && lightLeakIntensity > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = (lightLeakIntensity / 100) * 0.85;
+
+      if (lightLeakStyle === 'AMBER_EDGE') {
+        const grad = ctx.createRadialGradient(
+          w * 0.04, h * 0.35, w * 0.02,
+          w * 0.08, h * 0.4, w * 0.55
+        );
+        grad.addColorStop(0, 'rgba(255, 165, 55, 0.95)');
+        grad.addColorStop(0.45, 'rgba(235, 85, 30, 0.55)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      } else if (lightLeakStyle === 'CRIMSON_SPOOL') {
+        const grad = ctx.createLinearGradient(w * 0.55, 0, w, 0);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        grad.addColorStop(0.55, 'rgba(215, 45, 25, 0.5)');
+        grad.addColorStop(0.88, 'rgba(255, 140, 40, 0.85)');
+        grad.addColorStop(1, 'rgba(255, 210, 120, 0.95)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      } else if (lightLeakStyle === 'TUNGSTEN_STREAK') {
+        const grad = ctx.createRadialGradient(
+          w * 0.82, h * 0.18, w * 0.02,
+          w * 0.78, h * 0.5, h * 0.75
+        );
+        grad.addColorStop(0, 'rgba(255, 215, 130, 0.9)');
+        grad.addColorStop(0.35, 'rgba(240, 110, 45, 0.55)');
+        grad.addColorStop(0.7, 'rgba(140, 35, 95, 0.25)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+      }
+      ctx.restore();
+    }
+
+    // 90s Quartz LED Date-Back Imprint
+    if (quartzDateStamp) {
+      const stampText = (quartzDateText || "'26 11 13").trim();
+      const fontSize = Math.max(14, Math.round(Math.min(w, h) * 0.032));
+      const posX = w - Math.round(w * 0.055);
+      const posY = h - Math.round(h * 0.048);
+
+      ctx.save();
+      ctx.font = `600 ${fontSize}px "JetBrains Mono", monospace`;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+
+      ctx.shadowColor = 'rgba(255, 65, 15, 0.92)';
+      ctx.shadowBlur = Math.max(8, Math.round(fontSize * 0.55));
+      ctx.fillStyle = 'rgba(255, 110, 30, 0.9)';
+      ctx.fillText(stampText, posX, posY);
+
+      ctx.shadowBlur = Math.max(3, Math.round(fontSize * 0.2));
+      ctx.fillStyle = 'rgba(255, 195, 95, 0.96)';
+      ctx.fillText(stampText, posX, posY);
+      ctx.restore();
+    }
+  }, [image, zoneSystemOverlay, lightLeakStyle, lightLeakIntensity, quartzDateStamp, quartzDateText]);
+
+  // Update render adjustment settings and trigger live waveform + overlays
   useEffect(() => {
     const renderer = rendererRef.current || getOrCreateRenderer();
     if (!renderer || !image) return;
 
+    const effectiveExposure = (exposure / 100) * 2.0 + pushPullStops * 0.22;
+    const effectiveContrast = (contrast / 100) + pushPullStops * 0.16;
+    const effectiveGrain = Math.min(1.0, (grain / 100) + Math.max(0, pushPullStops * 0.12));
+
     renderer.setSettings({
       intensity: selectedFilm ? intensity / 100 : 0.0,
-      exposure: (exposure / 100) * 2.0,
-      contrast: contrast / 100,
+      exposure: effectiveExposure,
+      contrast: effectiveContrast,
       highlights: highlights / 100,
       shadows: shadows / 100,
       saturation: saturation / 100,
       temperature: temperature / 100,
-      grain: grain / 100,
+      grain: effectiveGrain,
       softness: softness / 100,
       halation: halation / 100,
       vignette: vignette / 100,
@@ -251,6 +393,14 @@ export default function EditorCanvas() {
     } else {
       renderer.stopAnimation();
       renderer.render();
+    }
+
+    renderOverlayPass();
+
+    // Compute live 64-bin waveform histogram from rendered frame
+    if (canvasRef.current) {
+      const hist = computeCanvasHistogram(canvasRef.current);
+      setHistogram(hist);
     }
   }, [
     image,
@@ -266,15 +416,31 @@ export default function EditorCanvas() {
     softness,
     halation,
     vignette,
+    pushPullStops,
     getOrCreateRenderer,
+    renderOverlayPass,
+    setHistogram,
   ]);
 
-  // File selection directly from Canvas empty state
+  // Update overlays whenever light leaks or quartz date stamp changes
+  useEffect(() => {
+    renderOverlayPass();
+  }, [renderOverlayPass]);
+
+  // File selection directly from Canvas empty state with EXIF ingestion
   const handleCanvasFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsLoading(true);
+
+    // Parse binary EXIF tags
+    parseExifFromFile(file).then((exif) => {
+      setParsedExif(exif);
+      if (exif.formattedDate) {
+        setQuartzDateText(exif.formattedDate);
+      }
+    }).catch(() => {});
 
     if (isRawOrHeicFile(file)) {
       try {
@@ -444,6 +610,11 @@ export default function EditorCanvas() {
         <canvas
           ref={canvasRef}
           className="block border border-white/30 shadow-[0_0_50px_rgba(0,0,0,0.9)]"
+        />
+        <canvas
+          ref={overlayCanvasRef}
+          data-overlay="darkroom"
+          className="absolute inset-0 pointer-events-none z-10"
         />
 
         {/* Industrial Darkroom Easel Registration Brackets */}

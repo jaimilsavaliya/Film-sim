@@ -3,6 +3,7 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { useEditorStore } from '@/lib/store';
 import { isRawOrHeicFile, decodeCameraRawOrHeic } from '@/lib/raw-decoder';
+import { parseExifFromFile } from '@/utils/exifParser';
 import { 
   Upload, 
   Download, 
@@ -16,6 +17,7 @@ import {
   Check,
   ChevronDown,
   Frame,
+  Grid,
   LayoutTemplate,
   Printer
 } from 'lucide-react';
@@ -32,6 +34,8 @@ export default function Header() {
   const setIsExporting = useEditorStore(s => s.setIsExporting);
   const resetAdjustments = useEditorStore(s => s.resetAdjustments);
   const openExportStudio = useEditorStore(s => s.openExportStudio);
+  const setParsedExif = useEditorStore(s => s.setParsedExif);
+  const setQuartzDateText = useEditorStore(s => s.setQuartzDateText);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -59,12 +63,20 @@ export default function Header() {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  // File selection with Camera RAW and HEIC support
+  // File selection with Camera RAW, HEIC, and Binary EXIF ingestion
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     setIsLoading(true);
+
+    // Auto-extract real camera EXIF metadata from JPEG / TIFF
+    parseExifFromFile(file).then((exif) => {
+      setParsedExif(exif);
+      if (exif.formattedDate) {
+        setQuartzDateText(exif.formattedDate);
+      }
+    }).catch(() => {});
 
     if (isRawOrHeicFile(file)) {
       try {
@@ -155,7 +167,7 @@ export default function Header() {
   }, [showBeforeAfter, setShowBeforeAfter, image, isExporting, handleExport, toggleFullscreen, resetAdjustments, openExportStudio]);
 
   return (
-    <header className="h-14 border-b border-white/20 bg-black flex items-center justify-between px-2.5 sm:px-4 z-30 flex-shrink-0 select-none">
+    <header className="relative z-40 h-14 border-b border-white/20 bg-black flex items-center justify-between px-2.5 sm:px-4 flex-shrink-0 select-none">
       {/* SECTION 00 // Brand & Analog Identity */}
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -250,7 +262,7 @@ export default function Header() {
 
         {/* Print & Export Studio Button Group */}
         {image && (
-          <div className="relative flex items-center">
+          <div className="relative flex items-center z-50">
             <div className="inline-flex border border-white">
               <button
                 onClick={() => openExportStudio('POLAROID')}
@@ -275,10 +287,10 @@ export default function Header() {
             {showExportMenu && (
               <>
                 <div 
-                  className="fixed inset-0 z-30" 
+                  className="fixed inset-0 z-40" 
                   onClick={() => setShowExportMenu(false)} 
                 />
-                <div className="absolute right-0 top-full mt-2 w-64 bg-black border-2 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] p-2 z-40 space-y-1">
+                <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-24px)] bg-black border-2 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.3)] p-2 z-50 space-y-1 animate-fadeIn">
                   <div className="px-2 py-1 text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest border-b border-white/15">
                     SECTION 04 // PRINT ARCHIVE
                   </div>
@@ -311,13 +323,26 @@ export default function Header() {
                   <button
                     onClick={() => {
                       setShowExportMenu(false);
+                      openExportStudio('CONTACT_SHEET');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-mono font-bold text-white hover:bg-white hover:text-black transition-colors cursor-pointer text-left"
+                  >
+                    <Grid className="w-3.5 h-3.5" />
+                    <div>
+                      <div>[03] 8×10" CONTACT SHEET</div>
+                      <div className="text-[10px] text-zinc-400 group-hover:text-black">6-Frame Proof Roll & Hero Mark</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowExportMenu(false);
                       openExportStudio('FILM_STRIP');
                     }}
                     className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-mono font-bold text-white hover:bg-white hover:text-black transition-colors cursor-pointer text-left"
                   >
                     <Film className="w-3.5 h-3.5" />
                     <div>
-                      <div>[03] 35MM CONTACT STRIP</div>
+                      <div>[04] 35MM CONTACT STRIP</div>
                       <div className="text-[10px] text-zinc-400 group-hover:text-black">Multi-Frame Sprocket Roll</div>
                     </div>
                   </button>
@@ -330,7 +355,7 @@ export default function Header() {
                   >
                     <Printer className="w-3.5 h-3.5" />
                     <div>
-                      <div>[04] FULL-BLEED NEGATIVE</div>
+                      <div>[05] FULL-BLEED NEGATIVE</div>
                       <div className="text-[10px] text-zinc-400 group-hover:text-black">Full 1:1 Graded Negative</div>
                     </div>
                   </button>
@@ -359,7 +384,7 @@ export default function Header() {
       {/* Keyboard Shortcuts Dialog */}
       {showShortcuts && (
         <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn"
           onClick={() => setShowShortcuts(false)}
         >
           <div 

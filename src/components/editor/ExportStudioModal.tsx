@@ -8,6 +8,7 @@ import {
   Download,
   Film,
   Frame,
+  Grid,
   Image as ImageIcon,
   ImagePlus,
   LayoutTemplate,
@@ -86,6 +87,8 @@ export default function ExportStudioModal({
     filmStripEdgeCode: selectedStock
       ? `${selectedStock.name.toUpperCase()}  •  ${selectedStock.iso}`
       : 'KODAK SAFETY FILM 5063',
+    contactSheetTitle: '35mm Darkroom Contact Sheet — Roll #042',
+    contactSheetHeroIndex: 1,
   }));
 
   const [filmStripSlots, setFilmStripSlots] = useState<FilmStripSlotItem[]>(() => [
@@ -111,6 +114,7 @@ export default function ExportStudioModal({
         posterHeadline: prev.posterHeadline || selectedStock.name,
         posterSubheadline: prev.posterSubheadline || selectedStock.characterNote,
         filmStripEdgeCode: `${selectedStock.name.toUpperCase()}  •  ${selectedStock.iso}`,
+        contactSheetTitle: prev.contactSheetTitle || '35mm Darkroom Contact Sheet — Roll #042',
       }));
     }
   }, [selectedStock]);
@@ -276,6 +280,7 @@ export default function ExportStudioModal({
   const templateTabs = [
     { id: 'POLAROID' as const, label: 'Instant Frame', subtitle: 'Polaroid & Instax', Icon: Frame },
     { id: 'POSTER' as const, label: 'Poster', subtitle: 'Exhibition Print', Icon: LayoutTemplate },
+    { id: 'CONTACT_SHEET' as const, label: 'Contact Sheet', subtitle: '8×10" Proof Roll', Icon: Grid },
     { id: 'FILM_STRIP' as const, label: 'Film Strip', subtitle: 'Multi-Frame Roll', Icon: Film },
     { id: 'RAW_FRAME' as const, label: 'Standard', subtitle: 'Full-Bleed Negative', Icon: ImageIcon },
   ];
@@ -396,7 +401,7 @@ export default function ExportStudioModal({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-0 sm:p-4 md:p-6 select-none animate-fadeIn"
+      className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-0 sm:p-4 md:p-6 select-none animate-fadeIn"
     >
       <input
         ref={multiUploadInputRef}
@@ -817,6 +822,152 @@ export default function ExportStudioModal({
                       onChange={(e) => updateConfig('posterShowExif', e.target.checked)}
                       className="w-4 h-4 rounded-none border border-white/40 accent-white cursor-pointer"
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* 8x10 Darkroom Contact Sheet Controls */}
+              {config.mode === 'CONTACT_SHEET' && (
+                <div className="space-y-4 pt-4 border-t border-white/20">
+                  <label className="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase block">
+                    04.3 // 8×10" PROOF ROLL ARCHIVE
+                  </label>
+
+                  <div>
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest block mb-1">
+                      ARCHIVAL PROOF HEADER
+                    </label>
+                    <input
+                      type="text"
+                      value={config.contactSheetTitle || ''}
+                      onChange={(e) => updateConfig('contactSheetTitle', e.target.value)}
+                      placeholder="e.g. ROLL NO. 042 · TRI-X 400 · OCT 1994"
+                      className="w-full h-9 px-3 bg-black border border-white/30 text-xs font-mono text-white focus:outline-none focus:border-white uppercase"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
+                        HERO PROOF LOUPE MARK
+                      </label>
+                      <span className="text-[9px] font-mono text-red-400 font-bold uppercase">
+                        RED GREASE-PENCIL
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => updateConfig('contactSheetHeroIndex', -1)}
+                        className={`py-1.5 text-[9px] font-mono font-bold uppercase border transition-colors cursor-pointer ${
+                          config.contactSheetHeroIndex === -1
+                            ? 'bg-white text-black border-white'
+                            : 'bg-black text-zinc-400 border-white/20 hover:text-white'
+                        }`}
+                      >
+                        NONE
+                      </button>
+                      {[0, 1, 2, 3, 4, 5].map((idx) => {
+                        const isHero = config.contactSheetHeroIndex === idx;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => updateConfig('contactSheetHeroIndex', idx)}
+                            className={`py-1.5 text-[10px] font-mono font-bold uppercase border transition-colors cursor-pointer ${
+                              isHero
+                                ? 'bg-red-600 text-white border-red-500 shadow-[1px_1px_0px_0px_rgba(255,255,255,0.4)]'
+                                : 'bg-black text-zinc-400 border-white/20 hover:text-white'
+                            }`}
+                          >
+                            #{idx + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Multi-Image Roll Frames */}
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-mono font-bold text-white uppercase">
+                        6-Frame Proof Grid ({filmStripSlots.length} / 6)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => multiUploadInputRef.current?.click()}
+                        disabled={filmStripSlots.length >= 6}
+                        className="px-2.5 py-1 bg-white text-black hover:bg-zinc-200 text-[10px] font-mono font-bold uppercase flex items-center gap-1.5 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                      >
+                        <ImagePlus className="w-3.5 h-3.5" />
+                        <span>Add Photos</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                      {filmStripSlots.map((slot, index) => (
+                        <div
+                          key={slot.id}
+                          className={`flex items-center justify-between p-2 bg-[#080808] border transition-colors ${
+                            config.contactSheetHeroIndex === index
+                              ? 'border-red-500/80 bg-red-950/20'
+                              : 'border-white/20 hover:border-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className={`text-[10px] font-mono font-bold w-4 text-center ${
+                              config.contactSheetHeroIndex === index ? 'text-red-400' : 'text-zinc-400'
+                            }`}>
+                              [{String(index + 1).padStart(2, '0')}]
+                            </span>
+                            <img
+                              src={slot.image.src}
+                              alt={slot.title}
+                              className="w-9 h-9 object-cover border border-white/20 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <span className="text-xs font-mono font-bold text-white truncate max-w-[130px] block uppercase">
+                                {slot.title}
+                              </span>
+                              {config.contactSheetHeroIndex === index && (
+                                <span className="text-[9px] font-mono text-red-400 font-bold uppercase">
+                                  ★ HERO PRINT
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveSlot(index, -1)}
+                              disabled={index === 0}
+                              className="p-1.5 text-zinc-400 hover:text-white disabled:opacity-20 cursor-pointer"
+                              title="Move Frame Up"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveSlot(index, 1)}
+                              disabled={index === filmStripSlots.length - 1}
+                              className="p-1.5 text-zinc-400 hover:text-white disabled:opacity-20 cursor-pointer"
+                              title="Move Frame Down"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSlot(slot.id)}
+                              disabled={filmStripSlots.length <= 1}
+                              className="p-1.5 text-zinc-400 hover:text-red-400 disabled:opacity-20 cursor-pointer"
+                              title="Delete Frame"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { useEditorStore } from '@/lib/store';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useEditorStore, DEFAULT_FAVORITES } from '@/lib/store';
 import { films, categories, type FilmCategory } from '@/lib/films';
-import { Search, Star, X, Film, Sparkles } from 'lucide-react';
+import { Search, Star, X, Film } from 'lucide-react';
 
 // Extract ISO speed from film name/id
 function extractISO(name: string): string {
@@ -11,47 +11,26 @@ function extractISO(name: string): string {
   return match ? `ISO ${match[1]}` : 'STD';
 }
 
-// Color accents for film packaging aesthetics
-const categoryBadges: Record<FilmCategory, { border: string; bg: string; dot: string; text: string }> = {
-  'Color Negative': {
-    border: 'border-amber-500/30 group-hover:border-amber-500/60',
-    bg: 'from-amber-950/20 to-zinc-900/60',
-    dot: 'bg-amber-500',
-    text: 'text-amber-400',
-  },
-  'Slide Film': {
-    border: 'border-blue-500/30 group-hover:border-blue-500/60',
-    bg: 'from-blue-950/20 to-zinc-900/60',
-    dot: 'bg-blue-400',
-    text: 'text-blue-400',
-  },
-  'Black & White': {
-    border: 'border-zinc-500/30 group-hover:border-zinc-400/60',
-    bg: 'from-zinc-800/30 to-zinc-900/60',
-    dot: 'bg-zinc-300',
-    text: 'text-zinc-300',
-  },
-  'Cinema & Print': {
-    border: 'border-rose-500/30 group-hover:border-rose-500/60',
-    bg: 'from-rose-950/20 to-zinc-900/60',
-    dot: 'bg-rose-500',
-    text: 'text-rose-400',
-  },
-  'Instant Film': {
-    border: 'border-emerald-500/30 group-hover:border-emerald-500/60',
-    bg: 'from-emerald-950/20 to-zinc-900/60',
-    dot: 'bg-emerald-400',
-    text: 'text-emerald-400',
-  },
-  'Fuji X-Trans III': {
-    border: 'border-indigo-500/30 group-hover:border-indigo-500/60',
-    bg: 'from-indigo-950/20 to-zinc-900/60',
-    dot: 'bg-indigo-400',
-    text: 'text-indigo-400',
-  },
+const categoryLabels: Record<FilmCategory, string> = {
+  'Color Negative': 'COLOR NEG',
+  'Slide Film': 'SLIDE E-6',
+  'Black & White': 'B&W SILVER',
+  'Cinema & Print': 'CINE ECN-2',
+  'Instant Film': 'INSTANT',
+  'Fuji X-Trans III': 'FUJI X-TRANS',
+};
+
+const categoryShortNames: Record<FilmCategory, string> = {
+  'Color Negative': 'COLOR',
+  'Slide Film': 'SLIDE',
+  'Black & White': 'B&W',
+  'Cinema & Print': 'CINE',
+  'Instant Film': 'INSTANT',
+  'Fuji X-Trans III': 'X-TRANS',
 };
 
 export default function FilmBrowser() {
+  const [isMounted, setIsMounted] = useState(false);
   const selectedFilm = useEditorStore(s => s.selectedFilm);
   const setSelectedFilm = useEditorStore(s => s.setSelectedFilm);
   const categoryFilter = useEditorStore(s => s.categoryFilter);
@@ -61,13 +40,22 @@ export default function FilmBrowser() {
   const applyFilmDefaults = useEditorStore(s => s.applyFilmDefaults);
   const favorites = useEditorStore(s => s.favorites);
   const toggleFavorite = useEditorStore(s => s.toggleFavorite);
+  const loadFavoritesFromStorage = useEditorStore(s => s.loadFavoritesFromStorage);
   const image = useEditorStore(s => s.image);
+
+  // Synchronize localStorage favorites after initial SSR hydration to avoid mismatch
+  useEffect(() => {
+    setIsMounted(true);
+    loadFavoritesFromStorage();
+  }, [loadFavoritesFromStorage]);
+
+  const activeFavorites = isMounted ? favorites : DEFAULT_FAVORITES;
 
   // Filtered films list
   const filteredFilms = useMemo(() => {
     return films.filter(film => {
       if (categoryFilter === 'Favorites') {
-        if (!favorites.includes(film.id)) return false;
+        if (!activeFavorites.includes(film.id)) return false;
       } else if (categoryFilter !== 'All' && film.category !== categoryFilter) {
         return false;
       }
@@ -82,7 +70,7 @@ export default function FilmBrowser() {
       }
       return true;
     });
-  }, [categoryFilter, searchQuery, favorites]);
+  }, [categoryFilter, searchQuery, activeFavorites]);
 
   const handleSelectFilm = (film: typeof films[0]) => {
     setSelectedFilm(film);
@@ -92,17 +80,17 @@ export default function FilmBrowser() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0d0d10] select-none">
-      {/* Search Bar */}
-      <div className="p-3 border-b border-white/10">
+    <div className="flex flex-col h-full bg-black select-none text-white font-mono">
+      {/* Search Bar & Stock Register */}
+      <div className="p-3 border-b border-white/20 bg-[#050505]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search 295 film stocks..."
-            className="w-full pl-8.5 pr-8 py-2 bg-zinc-900/90 border border-white/10 rounded-lg text-xs font-mono text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/40 transition-all"
+            placeholder="SEARCH 295 EMULSION STOCKS..."
+            className="w-full pl-8.5 pr-8 py-2 bg-black border border-white/25 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-white transition-colors uppercase"
           />
           {searchQuery && (
             <button
@@ -114,21 +102,21 @@ export default function FilmBrowser() {
           )}
         </div>
         
-        {/* Match Counter */}
-        <div className="flex items-center justify-between mt-2 text-[10px] font-mono text-zinc-500 px-1">
-          <span>CATALOG</span>
-          <span>{filteredFilms.length} / {films.length} STOCKS</span>
+        {/* Match Register Counter */}
+        <div className="flex items-center justify-between mt-2 text-[10px] font-mono text-zinc-400 uppercase tracking-widest px-0.5">
+          <span>CATALOG REGISTER</span>
+          <span className="font-bold text-white">{filteredFilms.length} / {films.length} STOCKS</span>
         </div>
       </div>
 
-      {/* Category Pills Slider */}
-      <div className="flex overflow-x-auto gap-1.5 px-3 py-2 border-b border-white/10 scrollbar-hide">
+      {/* Numbered Category Tabs */}
+      <div className="flex overflow-x-auto gap-1.5 p-2 border-b border-white/15 bg-black scrollbar-hide">
         <button
           onClick={() => setCategoryFilter('All')}
-          className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-mono tracking-tight transition-all cursor-pointer ${
+          className={`flex-shrink-0 px-2 py-1 text-[10px] font-mono font-bold tracking-wider transition-colors cursor-pointer border ${
             categoryFilter === 'All'
-              ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
-              : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-white/5'
+              ? 'bg-white text-black border-white'
+              : 'bg-black text-zinc-400 hover:text-white border-white/15 hover:border-white/40'
           }`}
         >
           ALL ({films.length})
@@ -136,68 +124,85 @@ export default function FilmBrowser() {
 
         <button
           onClick={() => setCategoryFilter('Favorites')}
-          className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-mono tracking-tight flex items-center gap-1 transition-all cursor-pointer ${
+          className={`flex-shrink-0 px-2 py-1 text-[10px] font-mono font-bold tracking-wider flex items-center gap-1 transition-colors cursor-pointer border ${
             categoryFilter === 'Favorites'
-              ? 'bg-amber-400 text-zinc-950 font-bold shadow-sm'
-              : 'bg-zinc-900 text-amber-500/80 hover:text-amber-400 border border-white/5'
+              ? 'bg-white text-black border-white'
+              : 'bg-black text-zinc-400 hover:text-white border-white/15 hover:border-white/40'
           }`}
         >
-          <Star className="w-3 h-3 fill-current" />
-          <span>FAVORITES ({favorites.length})</span>
+          <Star className={`w-3 h-3 ${categoryFilter === 'Favorites' ? 'fill-black' : 'fill-none'}`} />
+          <span suppressHydrationWarning>SAVED ({activeFavorites.length})</span>
         </button>
 
-        {categories.map(cat => {
+        {categories.map((cat) => {
           const count = films.filter(f => f.category === cat).length;
           const isActive = categoryFilter === cat;
           return (
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
-              className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-mono tracking-tight transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex-shrink-0 px-2 py-1 text-[10px] font-mono font-bold tracking-wider transition-colors cursor-pointer whitespace-nowrap border ${
                 isActive
-                  ? 'bg-zinc-100 text-zinc-950 font-bold shadow-sm'
-                  : 'bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-white/5'
+                  ? 'bg-white text-black border-white'
+                  : 'bg-black text-zinc-400 hover:text-white border-white/15 hover:border-white/40'
               }`}
             >
-              {cat} ({count})
+              {categoryShortNames[cat]} ({count})
             </button>
           );
         })}
       </div>
 
-      {/* Film Stock Grid */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {filteredFilms.map((film) => {
+      {/* Film Stock Numbered Archive Grid */}
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+        {filteredFilms.map((film, index) => {
           const isSelected = selectedFilm?.id === film.id;
-          const isFavorite = favorites.includes(film.id);
-          const badge = categoryBadges[film.category] || categoryBadges['Color Negative'];
+          const isFavorite = activeFavorites.includes(film.id);
           const iso = extractISO(film.name);
+          const itemIndex = String(index + 1).padStart(2, '0');
 
           return (
             <div
               key={`${film.id}-${film.lut}`}
               onClick={() => handleSelectFilm(film)}
-              className={`group relative flex flex-col p-3 rounded-xl border text-left transition-all duration-150 cursor-pointer ${
+              className={`group relative flex flex-col p-2.5 border text-left transition-colors duration-100 cursor-pointer ${
                 isSelected
-                  ? 'bg-gradient-to-br from-zinc-800 to-zinc-900 border-white/60 shadow-[0_0_16px_rgba(255,255,255,0.08)] ring-1 ring-white/30'
-                  : `bg-zinc-900/60 hover:bg-zinc-800/60 border-white/5 hover:border-white/20`
+                  ? 'bg-white text-black border-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.3)]'
+                  : 'bg-[#080808] hover:bg-[#121212] text-zinc-200 border-white/15 hover:border-white'
               }`}
             >
-              {/* Header row: Name + Favorite Star */}
+              {/* Header row: Index + Name + ISO + Favorite Star */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                    <h4 className="text-xs font-bold text-zinc-100 font-mono tracking-wide truncate">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-mono font-bold px-1.5 py-0.2 border ${
+                      isSelected ? 'bg-black text-white border-black' : 'bg-white/10 text-zinc-400 border-white/20'
+                    }`}>
+                      #{itemIndex}
+                    </span>
+                    {isSelected && (
+                      <span className="text-[9px] font-mono font-black px-1 py-0.2 bg-black text-white tracking-wider uppercase">
+                        ACTIVE
+                      </span>
+                    )}
+                    <h4 className={`text-xs font-black font-mono tracking-wide truncate uppercase ${
+                      isSelected ? 'text-black' : 'text-white'
+                    }`}>
                       {film.name}
                     </h4>
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-400 border border-white/5 font-semibold">
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className={`text-[9px] font-mono px-1.5 py-0.2 border font-bold ${
+                      isSelected 
+                        ? 'bg-black text-white border-black' 
+                        : 'bg-black text-zinc-300 border-white/20'
+                    }`}>
                       {iso}
                     </span>
-                    <span className={`text-[10px] font-mono truncate ${badge.text}`}>
-                      {film.category}
+                    <span className={`text-[9px] font-mono font-semibold tracking-wider uppercase truncate ${
+                      isSelected ? 'text-zinc-700' : 'text-zinc-400'
+                    }`}>
+                      {categoryLabels[film.category] || film.category}
                     </span>
                   </div>
                 </div>
@@ -209,37 +214,40 @@ export default function FilmBrowser() {
                     e.stopPropagation();
                     toggleFavorite(film.id);
                   }}
-                  title={isFavorite ? 'Remove Favorite' : 'Save to Favorites'}
-                  className={`p-1 rounded-md transition-colors ${
+                  title={isFavorite ? 'Remove from Saved' : 'Save Emulsion'}
+                  className={`p-1 border transition-colors ${
                     isFavorite 
-                      ? 'text-amber-400 hover:text-amber-300' 
-                      : 'text-zinc-600 hover:text-zinc-400 opacity-40 group-hover:opacity-100'
+                      ? isSelected 
+                        ? 'text-black border-black bg-zinc-200' 
+                        : 'text-white border-white bg-zinc-800' 
+                      : isSelected
+                        ? 'text-zinc-500 border-transparent hover:border-black'
+                        : 'text-zinc-600 border-transparent hover:border-white/40'
                   }`}
                 >
-                  <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-400' : ''}`} />
+                  <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : 'fill-none'}`} />
                 </button>
               </div>
 
               {/* Description */}
-              <p className="text-[11px] text-zinc-500 mt-2 line-clamp-1 leading-snug">
+              <p className={`text-[10px] font-mono mt-1.5 line-clamp-1 leading-snug ${
+                isSelected ? 'text-zinc-800' : 'text-zinc-400'
+              }`}>
                 {film.description}
               </p>
-
-              {/* Active Selection Indicator */}
-              {isSelected && (
-                <div className="absolute right-2 bottom-2 text-[9px] font-mono font-bold tracking-widest text-amber-400 px-1.5 py-0.5 bg-amber-950/40 border border-amber-500/30 rounded">
-                  LOADED
-                </div>
-              )}
             </div>
           );
         })}
 
         {filteredFilms.length === 0 && (
-          <div className="text-center py-12 px-4 space-y-2">
-            <Film className="w-8 h-8 text-zinc-600 mx-auto" />
-            <div className="text-xs font-mono text-zinc-400">NO FILM STOCKS FOUND</div>
-            <p className="text-[11px] text-zinc-600">Try adjusting your search terms or category filter</p>
+          <div className="text-center py-12 px-4 space-y-2 border border-dashed border-white/20 m-2">
+            <Film className="w-8 h-8 text-zinc-500 mx-auto" />
+            <div className="text-xs font-mono font-bold text-white tracking-widest uppercase">
+              NO EMULSION ARCHIVE FOUND
+            </div>
+            <p className="text-[11px] text-zinc-500 font-mono">
+              Adjust search keywords or category filters
+            </p>
           </div>
         )}
       </div>

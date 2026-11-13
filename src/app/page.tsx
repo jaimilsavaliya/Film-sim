@@ -5,8 +5,10 @@ import Header from '@/components/editor/Header';
 import FilmBrowser from '@/components/editor/FilmBrowser';
 import Controls from '@/components/editor/Controls';
 import EditorCanvas from '@/components/editor/Canvas';
+import ExportStudioModal from '@/components/editor/ExportStudioModal';
 import { useEditorStore } from '@/lib/store';
 import { isRawOrHeicFile, decodeCameraRawOrHeic } from '@/lib/raw-decoder';
+import { ExportStockMetadata, defaultImageToCanvas } from '@/lib/export-renderer';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -29,6 +31,36 @@ export default function Home() {
   const setIsLoading = useEditorStore(s => s.setIsLoading);
   const selectedFilm = useEditorStore(s => s.selectedFilm);
   const rawFormat = useEditorStore(s => s.rawFormat);
+  const isExportStudioOpen = useEditorStore(s => s.isExportStudioOpen);
+  const closeExportStudio = useEditorStore(s => s.closeExportStudio);
+  const exportStudioInitialMode = useEditorStore(s => s.exportStudioInitialMode);
+
+  // Map active FilmStock to ExportStockMetadata
+  const stockMetadata: ExportStockMetadata | null = selectedFilm ? {
+    id: selectedFilm.id,
+    name: selectedFilm.name,
+    brand: selectedFilm.name.split(' ')[0] || 'Film',
+    iso: selectedFilm.name.match(/\d{2,4}/)?.[0] ? `ISO ${selectedFilm.name.match(/\d{2,4}/)![0]}` : 'ISO 400',
+    process: selectedFilm.category === 'Black & White' ? 'Silver Halide B&W' : selectedFilm.category === 'Slide Film' ? 'E-6 Chrome' : selectedFilm.category === 'Cinema & Print' ? 'ECN-2 Cine' : 'C-41 Color Neg',
+    characterNote: selectedFilm.description || 'Minimalist darkroom color grading & analog emulation',
+  } : null;
+
+  // Custom grading hook to capture the WebGL canvas pixels for export
+  const gradeImageFn = useCallback((img: HTMLImageElement, maxDim: number) => {
+    const mainCanvas = document.querySelector('canvas');
+    if (img === image && mainCanvas && mainCanvas.width > 0 && mainCanvas.height > 0) {
+      const offscreen = document.createElement('canvas');
+      const scale = Math.min(1, maxDim / Math.max(mainCanvas.width, mainCanvas.height));
+      offscreen.width = Math.max(1, Math.round(mainCanvas.width * scale));
+      offscreen.height = Math.max(1, Math.round(mainCanvas.height * scale));
+      const ctx = offscreen.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(mainCanvas, 0, 0, offscreen.width, offscreen.height);
+      }
+      return offscreen;
+    }
+    return defaultImageToCanvas(img, maxDim);
+  }, [image]);
 
   // Drag & Drop handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -89,7 +121,7 @@ export default function Home() {
   return (
     <ErrorBoundary>
       <div 
-        className="h-[100dvh] flex flex-col bg-[#08080a] text-zinc-100 overflow-hidden font-sans"
+        className="h-[100dvh] flex flex-col bg-black text-white overflow-hidden font-mono"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -99,23 +131,25 @@ export default function Home() {
         <div className="flex-1 flex overflow-hidden relative">
           {/* Left Panel: Film Browser (Desktop) */}
           <aside 
-            className={`hidden md:flex flex-col flex-shrink-0 border-r border-white/10 bg-[#0d0d10] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden z-20 ${
-              showFilmPanel ? 'w-80 opacity-100' : 'w-0 opacity-0 border-r-0 pointer-events-none'
+            className={`hidden md:flex flex-col flex-shrink-0 border-r border-white/20 bg-black transition-all duration-200 ease-out overflow-hidden z-20 ${
+              showFilmPanel ? 'w-84 opacity-100' : 'w-0 opacity-0 border-r-0 pointer-events-none'
             }`}
           >
-            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/10 bg-zinc-900/40">
+            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/20 bg-[#080808]">
               <div className="flex items-center gap-2">
-                <Film className="w-3.5 h-3.5 text-amber-500" />
-                <h2 className="text-xs font-bold font-mono tracking-wider text-zinc-200">
-                  FILM STOCKS
+                <div className="border border-white/30 bg-white/10 px-1 py-0.2 text-[9px] font-mono font-bold text-white tracking-widest">
+                  01
+                </div>
+                <h2 className="text-xs font-black font-mono tracking-widest text-white uppercase">
+                  EMULSION ARCHIVE
                 </h2>
               </div>
               <button
                 onClick={() => setShowFilmPanel(false)}
-                title="Collapse Film Browser"
-                className="text-zinc-500 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Collapse Film Archive"
+                className="text-white hover:bg-white hover:text-black p-1 border border-white/20 hover:border-white transition-colors cursor-pointer"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
@@ -127,32 +161,40 @@ export default function Home() {
           {!showFilmPanel && (
             <button
               onClick={() => setShowFilmPanel(true)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 hover:text-white p-2 rounded-r-xl border-y border-r border-white/15 shadow-xl transition-all duration-200 hidden md:flex items-center gap-1 cursor-pointer group"
-              title="Expand Film Browser"
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-black hover:bg-white text-white hover:text-black p-2 border-y border-r border-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.3)] transition-colors duration-100 hidden md:flex items-center gap-1.5 cursor-pointer"
+              title="Expand Emulsion Archive"
             >
-              <Film className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-mono font-black uppercase tracking-widest">[01 // ARCHIVE]</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}
 
           {/* Main Viewfinder Canvas Area */}
-          <main className="flex-1 flex flex-col min-w-0 relative">
+          <main className="flex-1 flex flex-col min-w-0 relative bg-black">
             <div className="flex-1 relative overflow-hidden">
               <EditorCanvas />
 
               {/* Drag & Drop Visual Overlay */}
               {isDragOver && (
-                <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-40 flex items-center justify-center p-8 pointer-events-none animate-fadeIn">
-                  <div className="w-full max-w-md border-2 border-dashed border-amber-500/80 rounded-3xl p-10 text-center space-y-4 bg-amber-950/10 shadow-[0_0_50px_rgba(245,158,11,0.2)]">
-                    <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-500/40 mx-auto flex items-center justify-center text-amber-400 animate-bounce">
+                <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-40 flex items-center justify-center p-8 pointer-events-none animate-fadeIn">
+                  <div className="w-full max-w-md border-2 border-white p-10 text-center space-y-4 bg-black shadow-[12px_12px_0px_0px_rgba(255,255,255,0.4)] relative">
+                    <div className="corner-bracket-tl" />
+                    <div className="corner-bracket-tr" />
+                    <div className="corner-bracket-bl" />
+                    <div className="corner-bracket-br" />
+
+                    <div className="w-16 h-16 border-2 border-white bg-black mx-auto flex items-center justify-center text-white">
                       <UploadCloud className="w-8 h-8" />
                     </div>
-                    <div className="space-y-1">
-                      <h3 className="text-base font-bold font-mono text-white tracking-wider">
-                        DROP TO LOAD PHOTO OR CAMERA RAW
+                    <div className="space-y-1.5">
+                      <div className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
+                        [ 00 // VACANT DROP CARRIER ]
+                      </div>
+                      <h3 className="text-base font-black font-mono text-white tracking-widest uppercase">
+                        DROP RAW FILE OR NEGATIVE SCAN
                       </h3>
-                      <p className="text-xs font-mono text-zinc-400">
-                        Supports Camera RAW (CR2, CR3, ARW, NEF, RAF, DNG), Apple HEIC, JPEG, PNG
+                      <p className="text-xs font-mono text-zinc-400 uppercase">
+                        CANON CR2/CR3 • SONY ARW • NIKON NEF • FUJI RAF • ADOBE DNG • APPLE HEIC • JPEG • PNG
                       </p>
                     </div>
                   </div>
@@ -161,57 +203,66 @@ export default function Home() {
             </div>
 
             {/* Bottom Technical Status HUD */}
-            <div className="h-7 border-t border-white/10 bg-[#0d0d10]/95 px-4 flex items-center justify-between text-[10px] font-mono text-zinc-500 select-none flex-shrink-0">
-              <div className="flex items-center gap-3">
-                {image && (
+            <div className="h-8 border-t border-white/20 bg-black px-4 flex items-center justify-between text-[10px] font-mono text-zinc-400 select-none flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="text-white font-bold tracking-widest">[00 // TELEMETRY]</span>
+                <span className="text-zinc-600">//</span>
+                {image ? (
                   <>
-                    <span className="text-zinc-400">{image.naturalWidth} × {image.naturalHeight} PX</span>
-                    <span className="text-zinc-800">•</span>
+                    <span className="text-white font-semibold">{image.naturalWidth} × {image.naturalHeight} PX</span>
+                    <span className="text-zinc-600">//</span>
                     {selectedFilm ? (
-                      <span className="text-amber-400 flex items-center gap-1 font-semibold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                      <span className="text-white font-bold bg-white/10 px-1.5 py-0.2 border border-white/20 uppercase">
                         {selectedFilm.name}
                       </span>
                     ) : (
-                      <span className="text-zinc-500">RAW MATRIX</span>
+                      <span className="text-zinc-500">[RAW MATRIX]</span>
                     )}
                     {rawFormat && (
                       <>
-                        <span className="text-zinc-800">•</span>
-                        <span className="text-zinc-300 font-semibold">{rawFormat.toUpperCase()}</span>
+                        <span className="text-zinc-600">//</span>
+                        <span className="text-white font-bold">{rawFormat.toUpperCase()}</span>
                       </>
                     )}
-                    <span className="text-zinc-800">•</span>
+                    <span className="text-zinc-600">//</span>
                     <span className="text-zinc-400">GLSL 300 ES (GPU)</span>
                   </>
+                ) : (
+                  <span className="text-zinc-500">[STANDBY // VACANT FRAME]</span>
                 )}
               </div>
 
-              <div className="flex items-center gap-4 text-zinc-600">
-                <span className="hidden sm:inline">SHORTCUTS: [SPACE] COMPARE • [O] OPEN • [E] EXPORT</span>
+              <div className="hidden sm:flex items-center gap-3 text-zinc-500 font-bold uppercase tracking-wider">
+                <span>[SPACE] COMPARE</span>
+                <span>•</span>
+                <span>[O] LOAD</span>
+                <span>•</span>
+                <span>[E] EXPORT</span>
               </div>
             </div>
           </main>
 
           {/* Right Panel: Controls (Desktop) */}
           <aside 
-            className={`hidden md:flex flex-col flex-shrink-0 border-l border-white/10 bg-[#0d0d10] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden z-20 ${
-              showControlPanel ? 'w-80 opacity-100' : 'w-0 opacity-0 border-l-0 pointer-events-none'
+            className={`hidden md:flex flex-col flex-shrink-0 border-l border-white/20 bg-black transition-all duration-200 ease-out overflow-hidden z-20 ${
+              showControlPanel ? 'w-84 opacity-100' : 'w-0 opacity-0 border-l-0 pointer-events-none'
             }`}
           >
-            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/10 bg-zinc-900/40">
+            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/20 bg-[#080808]">
               <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
-                <h2 className="text-xs font-bold font-mono tracking-wider text-zinc-200">
-                  ADJUSTMENTS
+                <div className="border border-white/30 bg-white/10 px-1 py-0.2 text-[9px] font-mono font-bold text-white tracking-widest">
+                  03
+                </div>
+                <h2 className="text-xs font-black font-mono tracking-widest text-white uppercase">
+                  OPTICAL PARAMETERS
                 </h2>
               </div>
               <button
                 onClick={() => setShowControlPanel(false)}
-                title="Collapse Adjustments"
-                className="text-zinc-500 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Collapse Parameters"
+                className="text-white hover:bg-white hover:text-black p-1 border border-white/20 hover:border-white transition-colors cursor-pointer"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
@@ -223,54 +274,58 @@ export default function Home() {
           {!showControlPanel && (
             <button
               onClick={() => setShowControlPanel(true)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 hover:text-white p-2 rounded-l-xl border-y border-l border-white/15 shadow-xl transition-all duration-200 hidden md:flex items-center gap-1 cursor-pointer group"
-              title="Expand Adjustments"
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-black hover:bg-white text-white hover:text-black p-2 border-y border-l border-white shadow-[-4px_4px_0px_0px_rgba(255,255,255,0.3)] transition-colors duration-100 hidden md:flex items-center gap-1.5 cursor-pointer"
+              title="Expand Parameters"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
-              <SlidersHorizontal className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-mono font-black uppercase tracking-widest">[03 // PARAMS]</span>
             </button>
           )}
         </div>
 
         {/* Mobile Bottom Navigation Toolbar */}
-        <div className="md:hidden border-t border-white/10 bg-[#0d0d10] flex items-center justify-around py-2 safe-area-bottom z-30">
+        <div className="md:hidden border-t border-white/20 bg-black flex items-center justify-around py-2 safe-area-bottom z-30 font-mono">
           <button
             onClick={() => setMobilePanel(mobilePanel === 'films' ? 'none' : 'films')}
-            className={`flex flex-col items-center gap-1 px-5 py-1 rounded-xl transition-all ${
-              mobilePanel === 'films' ? 'text-amber-400 font-bold bg-zinc-800/80' : 'text-zinc-400 hover:text-zinc-200'
+            className={`flex flex-col items-center gap-1 px-5 py-1.5 border transition-colors ${
+              mobilePanel === 'films' 
+                ? 'bg-white text-black border-white font-bold' 
+                : 'bg-black text-zinc-300 border-white/20'
             }`}
           >
             <Film className="w-4 h-4" />
-            <span className="text-[10px] font-mono">FILMS</span>
+            <span className="text-[10px] font-mono uppercase tracking-widest">[01 // FILMS]</span>
           </button>
 
           <button
             onClick={() => setMobilePanel(mobilePanel === 'controls' ? 'none' : 'controls')}
-            className={`flex flex-col items-center gap-1 px-5 py-1 rounded-xl transition-all ${
-              mobilePanel === 'controls' ? 'text-amber-400 font-bold bg-zinc-800/80' : 'text-zinc-400 hover:text-zinc-200'
+            className={`flex flex-col items-center gap-1 px-5 py-1.5 border transition-colors ${
+              mobilePanel === 'controls' 
+                ? 'bg-white text-black border-white font-bold' 
+                : 'bg-black text-zinc-300 border-white/20'
             }`}
           >
             <SlidersHorizontal className="w-4 h-4" />
-            <span className="text-[10px] font-mono">ADJUST</span>
+            <span className="text-[10px] font-mono uppercase tracking-widest">[03 // ADJUST]</span>
           </button>
         </div>
 
         {/* Mobile Slide-Up Drawer */}
         {mobilePanel !== 'none' && (
           <div className="md:hidden fixed inset-x-0 bottom-14 z-50 animate-slide-up">
-            <div className="bg-[#0e0e12] border-t border-white/15 rounded-t-2xl shadow-2xl max-h-[75vh] overflow-hidden flex flex-col">
+            <div className="bg-black border-t-2 border-white shadow-2xl max-h-[75vh] overflow-hidden flex flex-col">
               {/* Drawer Grab Handle */}
-              <div className="flex justify-center py-2.5 bg-zinc-900/60 border-b border-white/5">
-                <div className="w-10 h-1 bg-zinc-600 rounded-full" />
+              <div className="flex justify-between items-center px-4 py-2 bg-[#080808] border-b border-white/20">
+                <span className="text-[10px] font-mono font-bold text-white uppercase tracking-widest">
+                  {mobilePanel === 'films' ? 'SECTION 01 // EMULSION ARCHIVE' : 'SECTION 03 // OPTICAL PARAMETERS'}
+                </span>
+                <button
+                  onClick={() => setMobilePanel('none')}
+                  className="p-1 text-white border border-white/20 hover:bg-white hover:text-black cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-
-              {/* Close Button */}
-              <button
-                onClick={() => setMobilePanel('none')}
-                className="absolute top-2 right-3 p-1.5 text-zinc-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
               
               {mobilePanel === 'films' && (
                 <div className="flex-1 overflow-hidden flex flex-col">
@@ -284,6 +339,19 @@ export default function Home() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Darkroom Print & Export Studio Modal */}
+        {image && isExportStudioOpen && (
+          <ExportStudioModal
+            isOpen={isExportStudioOpen}
+            onClose={closeExportStudio}
+            primaryImage={image}
+            primaryImageTitle={selectedFilm ? `${selectedFilm.name} Study` : '35mm Contact Study'}
+            selectedStock={stockMetadata}
+            initialMode={exportStudioInitialMode}
+            gradeImageFn={gradeImageFn}
+          />
         )}
       </div>
     </ErrorBoundary>

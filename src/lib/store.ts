@@ -31,6 +31,8 @@ export interface EditorState {
   comparePosition: number;
   isLoading: boolean;
   isExporting: boolean;
+  isExportStudioOpen: boolean;
+  exportStudioInitialMode: 'RAW_FRAME' | 'POLAROID' | 'POSTER' | 'FILM_STRIP';
   activeControlTab: 'film' | 'tone' | 'effects';
   
   // Actions
@@ -40,6 +42,7 @@ export interface EditorState {
   setCategoryFilter: (filter: FilmCategory | 'All' | 'Favorites') => void;
   setSearchQuery: (query: string) => void;
   toggleFavorite: (filmId: string) => void;
+  loadFavoritesFromStorage: () => void;
   setIntensity: (value: number) => void;
   setGrain: (value: number) => void;
   setSoftness: (value: number) => void;
@@ -55,6 +58,9 @@ export interface EditorState {
   setComparePosition: (pos: number) => void;
   setIsLoading: (loading: boolean) => void;
   setIsExporting: (exporting: boolean) => void;
+  setIsExportStudioOpen: (open: boolean) => void;
+  openExportStudio: (mode?: 'RAW_FRAME' | 'POLAROID' | 'POSTER' | 'FILM_STRIP') => void;
+  closeExportStudio: () => void;
   setActiveControlTab: (tab: 'film' | 'tone' | 'effects') => void;
   resetAdjustments: () => void;
   applyFilmDefaults: (film: FilmStock) => void;
@@ -74,18 +80,12 @@ const initialAdjustments = {
   shadows: 0,
 };
 
-function getInitialFavorites(): string[] {
-  if (typeof window === 'undefined') {
-    return ['kodak_portra_400', 'kodak_tri_x_400', 'fuji_velvia_50', 'cinestill_800t'];
-  }
-  try {
-    const saved = localStorage.getItem('filmsim_favorites');
-    if (saved) return JSON.parse(saved);
-  } catch (e) {
-    // fallback
-  }
-  return ['kodak_portra_400', 'kodak_tri_x_400', 'fuji_velvia_50', 'cinestill_800t'];
-}
+export const DEFAULT_FAVORITES: string[] = [
+  'kodak_portra_400',
+  'kodak_tri_x_400',
+  'fuji_velvia_50',
+  'cinestill_800t',
+];
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   image: null,
@@ -94,12 +94,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedFilm: null,
   categoryFilter: 'All',
   searchQuery: '',
-  favorites: getInitialFavorites(),
+  favorites: DEFAULT_FAVORITES,
   ...initialAdjustments,
   showBeforeAfter: false,
   comparePosition: 50,
   isLoading: false,
   isExporting: false,
+  isExportStudioOpen: false,
+  exportStudioInitialMode: 'POLAROID',
   activeControlTab: 'film',
 
   setImage: (image, url, rawFormat = null) => set({ image, imageUrl: url, rawFormat }),
@@ -107,6 +109,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSelectedFilm: (film) => set({ selectedFilm: film }),
   setCategoryFilter: (filter) => set({ categoryFilter: filter }),
   setSearchQuery: (query) => set({ searchQuery: query }),
+
+  loadFavoritesFromStorage: () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem('filmsim_favorites');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          set({ favorites: parsed });
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  },
   
   toggleFavorite: (filmId: string) => {
     const current = get().favorites;
@@ -137,6 +154,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setComparePosition: (pos) => set({ comparePosition: pos }),
   setIsLoading: (loading) => set({ isLoading: loading }),
   setIsExporting: (exporting) => set({ isExporting: exporting }),
+  setIsExportStudioOpen: (open) => set({ isExportStudioOpen: open }),
+  openExportStudio: (mode = 'POLAROID') => set({ isExportStudioOpen: true, exportStudioInitialMode: mode }),
+  closeExportStudio: () => set({ isExportStudioOpen: false }),
   setActiveControlTab: (tab) => set({ activeControlTab: tab }),
   
   resetAdjustments: () => set({

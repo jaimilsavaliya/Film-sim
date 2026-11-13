@@ -65,8 +65,9 @@ input[type="range"] {
   appearance: none;
   background: transparent;
   cursor: pointer;
-  height: 22px;
+  height: 24px;
   margin: 0;
+  touch-action: none;
 }
 
 input[type="range"]:focus {
@@ -109,6 +110,22 @@ input[type="range"]:active::-webkit-slider-thumb {
   transform: scale(1.3);
   background: #ffffff;
   box-shadow: 0 0 0 2px #ffffff, 0 0 12px rgba(255, 255, 255, 0.8);
+}
+
+/* Touch & Mobile device optimization: larger hit targets */
+@media (pointer: coarse) {
+  input[type="range"] {
+    height: 34px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+    margin-top: -8px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+  }
 }
 
 /* Firefox Track & Thumb */

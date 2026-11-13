@@ -151,17 +151,31 @@ export default function EditorCanvas() {
     renderer.render();
   }, [image, getOrCreateRenderer]);
 
-  // Update whenever image loads or container resizes
+  // Update whenever image loads or container resizes (including sidebar and drawer toggles)
   useEffect(() => {
     if (!image) return;
     updateCanvasDimensionsAndImage();
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        updateCanvasDimensionsAndImage();
+      });
+      resizeObserver.observe(container);
+    }
 
     const handleResize = () => {
       updateCanvasDimensionsAndImage();
     };
 
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      resizeObserver?.disconnect();
+    };
   }, [image, updateCanvasDimensionsAndImage]);
 
   // Load and apply selected Film LUT
@@ -291,6 +305,9 @@ export default function EditorCanvas() {
 
   // Compare slider dragging handlers
   const handleCompareMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e && e.cancelable) {
+      e.preventDefault();
+    }
     if (!containerRef.current || !canvasRef.current) return;
     const canvasRect = canvasRef.current.getBoundingClientRect();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -301,7 +318,9 @@ export default function EditorCanvas() {
   return (
     <div 
       ref={containerRef}
-      className="viewfinder-grid relative w-full h-full flex items-center justify-center overflow-hidden select-none"
+      className={`viewfinder-grid relative w-full h-full flex items-center justify-center overflow-hidden select-none p-3 sm:p-4 ${
+        showBeforeAfter ? 'touch-none' : ''
+      }`}
       onMouseMove={isDragging ? handleCompareMove : undefined}
       onMouseUp={() => setIsDragging(false)}
       onMouseLeave={() => setIsDragging(false)}
@@ -319,7 +338,7 @@ export default function EditorCanvas() {
 
       {/* Central Viewfinder Crosshair */}
       {!image && (
-        <div className="absolute w-12 h-12 pointer-events-none opacity-30 flex items-center justify-center">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 pointer-events-none opacity-25 flex items-center justify-center z-0">
           <div className="w-full h-[1px] bg-white" />
           <div className="h-full w-[1px] bg-white absolute" />
         </div>
@@ -327,7 +346,7 @@ export default function EditorCanvas() {
 
       {/* Empty State Welcome Card (Brutalist Editorial Carrier) */}
       {!image && (
-        <div className="relative z-10 text-white text-center max-w-lg px-8 py-10 border-2 border-white bg-black shadow-[12px_12px_0px_0px_rgba(255,255,255,0.25)] space-y-6 animate-fadeIn">
+        <div className="relative z-10 text-white text-center w-full max-w-lg max-h-[85vh] overflow-y-auto px-5 py-6 sm:px-8 sm:py-8 border-2 border-white bg-black shadow-[12px_12px_0px_0px_rgba(255,255,255,0.25)] space-y-4 sm:space-y-6 animate-fadeIn">
           <div className="corner-bracket-tl" />
           <div className="corner-bracket-tr" />
           <div className="corner-bracket-bl" />
@@ -414,11 +433,13 @@ export default function EditorCanvas() {
         </div>
       )}
 
-      {/* Main WebGL2 Canvas Viewport (Always kept in DOM so WebGL2 initializes properly) */}
+      {/* Main WebGL2 Canvas Viewport */}
       <div 
-        className={`relative flex items-center justify-center ${
-          image ? 'opacity-100 scale-100 transition-all duration-200' : 'invisible absolute -left-[9999px] pointer-events-none'
-        }`}
+        className={
+          image
+            ? 'relative flex items-center justify-center opacity-100 scale-100 transition-all duration-200'
+            : 'hidden'
+        }
       >
         <canvas
           ref={canvasRef}
@@ -444,12 +465,12 @@ export default function EditorCanvas() {
           </div>
         )}
         
-        {/* Loading HUD Badge */}
+        {/* Non-Intrusive Corner Loading Indicator (NO full-screen blur or blackout) */}
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-[2px] pointer-events-none">
-            <div className="flex items-center gap-2.5 px-4 py-2 bg-black border-2 border-white text-xs font-mono font-bold text-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.4)]">
-              <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent" />
-              <span className="tracking-widest uppercase">[PROCESSING 3D-LUT PROFILE...]</span>
+          <div className="absolute top-3 right-3 pointer-events-none z-20 animate-fadeIn">
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-black/90 border border-white text-[10px] font-mono font-bold text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]">
+              <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent" />
+              <span className="tracking-widest uppercase">LOADING 3D-LUT...</span>
             </div>
           </div>
         )}
@@ -479,22 +500,27 @@ export default function EditorCanvas() {
             
             {/* Vertical Divider & Draggable Handle */}
             <div 
-              className="absolute top-0 bottom-0 w-[2px] bg-white pointer-events-auto cursor-col-resize z-20 shadow-[0_0_10px_rgba(0,0,0,1)]"
+              className="absolute top-0 bottom-0 w-[2px] bg-white pointer-events-auto cursor-col-resize z-20 shadow-[0_0_10px_rgba(0,0,0,1)] touch-none"
               style={{ left: `${comparePosition}%` }}
               onMouseDown={() => setIsDragging(true)}
-              onTouchStart={() => setIsDragging(true)}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                setIsDragging(true);
+              }}
             >
-              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-1/2 w-7 h-7 bg-black border-2 border-white text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.8)] flex items-center justify-center cursor-grab active:cursor-grabbing hover:scale-110 transition-transform">
+              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-1/2 w-8 h-8 sm:w-7 sm:h-7 bg-black border-2 border-white text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.8)] flex items-center justify-center cursor-grab active:cursor-grabbing hover:scale-110 transition-transform touch-none">
                 <span className="text-[10px] font-mono font-black">◧</span>
               </div>
             </div>
             
             {/* Monochromatic Badges */}
-            <div className="absolute top-3 left-3 px-2 py-0.5 bg-black text-white text-[10px] font-mono font-bold tracking-widest border border-white">
-              [01.0 // ORIGINAL]
+            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 bg-black text-white text-[9px] sm:text-[10px] font-mono font-bold tracking-wider sm:tracking-widest border border-white z-10 pointer-events-none select-none">
+              <span className="hidden sm:inline">[01 // ORIGINAL]</span>
+              <span className="sm:hidden">ORIGINAL</span>
             </div>
-            <div className="absolute top-3 right-3 px-2 py-0.5 bg-white text-black text-[10px] font-mono font-bold tracking-widest border border-black">
-              [02.0 // EMULSION]
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3 px-1.5 sm:px-2 py-0.5 bg-white text-black text-[9px] sm:text-[10px] font-mono font-bold tracking-wider sm:tracking-widest border border-black z-10 pointer-events-none select-none">
+              <span className="hidden sm:inline">[02 // EMULSION]</span>
+              <span className="sm:hidden">EMULSION</span>
             </div>
           </div>
         )}

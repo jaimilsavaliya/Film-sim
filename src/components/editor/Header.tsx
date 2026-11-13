@@ -155,14 +155,14 @@ export default function Header() {
   }, [showBeforeAfter, setShowBeforeAfter, image, isExporting, handleExport, toggleFullscreen, resetAdjustments, openExportStudio]);
 
   return (
-    <header className="h-14 border-b border-white/20 bg-black flex items-center justify-between px-4 z-30 flex-shrink-0 select-none">
+    <header className="h-14 border-b border-white/20 bg-black flex items-center justify-between px-2.5 sm:px-4 z-30 flex-shrink-0 select-none">
       {/* SECTION 00 // Brand & Analog Identity */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="border border-white/30 bg-white/10 px-1.5 py-0.5 text-[10px] font-mono font-bold text-white tracking-widest uppercase">
             00
           </div>
-          <h1 className="text-sm font-black tracking-widest text-white font-mono uppercase flex items-center gap-2">
+          <h1 className="text-xs sm:text-sm font-black tracking-widest text-white font-mono uppercase flex items-center gap-1.5 sm:gap-2">
             FILMSIM
             <span className="hidden sm:inline text-[9px] font-mono tracking-widest px-1.5 py-0.5 bg-white text-black font-extrabold uppercase">
               EDITORIAL LAB
@@ -170,7 +170,7 @@ export default function Header() {
           </h1>
         </div>
 
-        {/* Selected Film Indicator */}
+        {/* Selected Film Indicator (Desktop & Tablet Landscape) */}
         {selectedFilm && (
           <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 border border-white/20 bg-[#0a0a0a] text-xs font-mono">
             <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">[STOCK]</span>
@@ -183,7 +183,7 @@ export default function Header() {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         {/* Hidden File Input supporting Standard, RAW, and HEIC */}
         <input
           ref={fileInputRef}
@@ -197,7 +197,7 @@ export default function Header() {
         <button
           onClick={() => fileInputRef.current?.click()}
           title="Open Photo or Camera RAW (O)"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold font-mono tracking-wider text-white bg-black hover:bg-white hover:text-black border border-white/30 hover:border-white transition-colors duration-100 cursor-pointer active:scale-95"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold font-mono tracking-wider text-white bg-black hover:bg-white hover:text-black border border-white/30 hover:border-white transition-colors duration-100 cursor-pointer active:scale-95"
         >
           <Upload className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">[+ LOAD RAW]</span>
@@ -208,7 +208,7 @@ export default function Header() {
           <button
             onClick={() => setShowBeforeAfter(!showBeforeAfter)}
             title="Toggle Split Compare (Space or \)"
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold font-mono tracking-wider border transition-colors duration-100 cursor-pointer active:scale-95 ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold font-mono tracking-wider border transition-colors duration-100 cursor-pointer active:scale-95 ${
               showBeforeAfter
                 ? 'bg-white text-black border-white'
                 : 'bg-black text-white hover:bg-white hover:text-black border-white/30 hover:border-white'
@@ -239,11 +239,11 @@ export default function Header() {
           {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </button>
 
-        {/* Shortcuts / Help modal button */}
+        {/* Shortcuts / Help modal button (hidden on touch-only mobile devices) */}
         <button
           onClick={() => setShowShortcuts(!showShortcuts)}
           title="Keyboard Shortcuts (?)"
-          className="p-1.5 text-white bg-black hover:bg-white hover:text-black border border-white/30 hover:border-white transition-colors duration-100 cursor-pointer active:scale-95"
+          className="hidden md:flex p-1.5 text-white bg-black hover:bg-white hover:text-black border border-white/30 hover:border-white transition-colors duration-100 cursor-pointer active:scale-95"
         >
           <HelpCircle className="w-3.5 h-3.5" />
         </button>
@@ -255,16 +255,17 @@ export default function Header() {
               <button
                 onClick={() => openExportStudio('POLAROID')}
                 title="Open Darkroom Print & Export Studio (E)"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold font-mono tracking-wider bg-white text-black hover:bg-zinc-200 transition-colors duration-100 cursor-pointer active:scale-95"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold font-mono tracking-wider bg-white text-black hover:bg-zinc-200 transition-colors duration-100 cursor-pointer active:scale-95"
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>[PRINT / EXPORT]</span>
+                <span className="hidden sm:inline">[PRINT / EXPORT]</span>
+                <span className="sm:hidden">[EXPORT]</span>
               </button>
 
               <button
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 title="More Print Templates"
-                className="px-2 py-1.5 bg-white text-black border-l border-black/20 hover:bg-zinc-200 transition-colors duration-100 cursor-pointer"
+                className="px-1.5 sm:px-2 py-1.5 bg-white text-black border-l border-black/20 hover:bg-zinc-200 transition-colors duration-100 cursor-pointer"
               >
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>

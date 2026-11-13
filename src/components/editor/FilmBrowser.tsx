@@ -110,7 +110,7 @@ export default function FilmBrowser() {
       </div>
 
       {/* Numbered Category Tabs */}
-      <div className="flex overflow-x-auto gap-1.5 p-2 border-b border-white/15 bg-black scrollbar-hide">
+      <div className="flex overflow-x-auto gap-1.5 p-2 border-b border-white/15 bg-black scrollbar-hide overscroll-x-contain touch-pan-x">
         <button
           onClick={() => setCategoryFilter('All')}
           className={`flex-shrink-0 px-2 py-1 text-[10px] font-mono font-bold tracking-wider transition-colors cursor-pointer border ${

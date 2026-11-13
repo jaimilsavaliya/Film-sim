@@ -385,20 +385,20 @@ export default function ExportStudioModal({
         <div className="corner-bracket-br" />
 
         {/* Header */}
-        <div className="h-14 px-6 border-b border-white/20 flex items-center justify-between bg-[#080808] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="border border-white/30 bg-white/10 px-1.5 py-0.2 text-[9px] font-mono font-bold text-white tracking-widest">
+        <div className="h-12 sm:h-14 px-3.5 sm:px-6 border-b border-white/20 flex items-center justify-between bg-[#080808] shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="border border-white/30 bg-white/10 px-1.5 py-0.5 text-[9px] font-mono font-bold text-white tracking-widest shrink-0">
               04
             </div>
-            <span className="text-sm font-black font-mono tracking-widest text-white uppercase">
+            <span className="text-xs sm:text-sm font-black font-mono tracking-widest text-white uppercase truncate">
               DARKROOM PRINT STUDIO
             </span>
-            <span className="hidden sm:inline-block px-2 py-0.5 text-[9px] font-mono font-bold bg-white text-black uppercase tracking-widest">
+            <span className="hidden sm:inline-block px-2 py-0.5 text-[9px] font-mono font-bold bg-white text-black uppercase tracking-widest shrink-0">
               MM-ACCURATE PHOTOGRAPHIC ARCHIVE
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={onClose}
@@ -411,12 +411,12 @@ export default function ExportStudioModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
           {/* Live Canvas Preview */}
-          <div className="flex-1 p-4 md:p-8 bg-[#040404] flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/20 relative overflow-hidden">
+          <div className="w-full shrink-0 h-[38dvh] min-h-[220px] max-h-[360px] lg:h-full lg:min-h-0 lg:max-h-none lg:flex-1 p-3 sm:p-4 lg:p-8 bg-[#040404] flex items-center justify-center border-b lg:border-b-0 lg:border-r border-white/20 relative overflow-hidden">
             <div className="absolute inset-0 opacity-25 pointer-events-none viewfinder-grid" />
 
-            <div className="relative">
+            <div className="relative max-h-full max-w-full inline-flex items-center justify-center">
               <div className="corner-bracket-tl" />
               <div className="corner-bracket-tr" />
               <div className="corner-bracket-bl" />
@@ -424,14 +424,14 @@ export default function ExportStudioModal({
 
               <canvas
                 ref={previewCanvasRef}
-                className="max-w-full max-h-[46dvh] lg:max-h-[calc(90dvh-130px)] w-auto h-auto object-contain border border-white/40 shadow-[0_20px_60px_rgba(0,0,0,1)] z-10 block"
+                className="max-w-full max-h-[calc(38dvh-1.5rem)] sm:max-h-[calc(40dvh-2rem)] lg:max-h-[calc(92dvh-130px)] w-auto h-auto object-contain border border-white/40 shadow-[0_20px_60px_rgba(0,0,0,1)] z-10 block"
               />
             </div>
           </div>
 
           {/* Controls Sidebar */}
-          <div className="w-full lg:w-[440px] shrink-0 bg-black flex flex-col lg:h-full border-t lg:border-t-0 border-white/20">
-            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          <div className="w-full lg:w-[440px] flex-1 min-h-0 lg:h-full shrink-0 bg-black flex flex-col border-t lg:border-t-0 border-white/20 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-5 sm:space-y-6 overscroll-contain">
               {/* Template Mode Tabs */}
               <div>
                 <label className="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase mb-2 block">
@@ -654,13 +654,13 @@ export default function ExportStudioModal({
 
               {/* Poster Controls */}
               {config.mode === 'POSTER' && (
-                <div className="space-y-3 pt-4 border-t border-white/10">
-                  <label className="text-[11px] font-mono tracking-wider text-zinc-400 uppercase block">
-                    Exhibition Poster Typography
+                <div className="space-y-4 pt-4 border-t border-white/20">
+                  <label className="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase block">
+                    04.3 // EXHIBITION POSTER TYPOGRAPHY
                   </label>
 
                   <div>
-                    <label className="text-[10px] font-mono text-zinc-500 block mb-1">
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest block mb-1">
                       EXHIBITION HEADLINE
                     </label>
                     <input
@@ -668,12 +668,12 @@ export default function ExportStudioModal({
                       value={config.posterHeadline}
                       onChange={(e) => updateConfig('posterHeadline', e.target.value)}
                       placeholder="e.g. Leica Contact Study"
-                      className="w-full h-9 px-3 rounded-lg bg-[#080807] border border-white/10 text-sm font-serif text-[#EDE9E2] focus:outline-none focus:border-amber-500/50"
+                      className="w-full h-9 px-3 bg-black border border-white/30 text-sm font-serif italic text-white focus:outline-none focus:border-white uppercase"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-mono text-zinc-500 block mb-1">
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest block mb-1">
                       SUBHEADLINE / CURATOR NOTE
                     </label>
                     <input
@@ -681,12 +681,12 @@ export default function ExportStudioModal({
                       value={config.posterSubheadline}
                       onChange={(e) => updateConfig('posterSubheadline', e.target.value)}
                       placeholder="e.g. Minimalist silver halide darkroom grading"
-                      className="w-full h-9 px-3 rounded-lg bg-[#080807] border border-white/10 text-xs text-[#EDE9E2] focus:outline-none focus:border-amber-500/50"
+                      className="w-full h-9 px-3 bg-black border border-white/30 text-xs font-mono text-white focus:outline-none focus:border-white uppercase"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-mono text-zinc-500 block mb-1">
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest block mb-1">
                       CAMERA & OPTICS EXIF
                     </label>
                     <input
@@ -694,31 +694,31 @@ export default function ExportStudioModal({
                       value={config.posterExifText}
                       onChange={(e) => updateConfig('posterExifText', e.target.value)}
                       placeholder="e.g. LEICA M6 TTL · 35MM SUMMILUX · 1/250S"
-                      className="w-full h-9 px-3 rounded-lg bg-[#080807] border border-white/10 text-xs font-mono text-[#EDE9E2] focus:outline-none focus:border-amber-500/50"
+                      className="w-full h-9 px-3 bg-black border border-white/30 text-xs font-mono text-white focus:outline-none focus:border-white uppercase"
                     />
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs font-mono text-zinc-300">
+                    <span className="text-xs font-mono font-bold text-white uppercase">
                       5-Color Film Palette Swatches
                     </span>
                     <input
                       type="checkbox"
                       checked={config.posterShowPaletteSwatches}
                       onChange={(e) => updateConfig('posterShowPaletteSwatches', e.target.checked)}
-                      className="w-4 h-4 rounded border-zinc-700 text-amber-500 focus:ring-amber-500 cursor-pointer accent-amber-500"
+                      className="w-4 h-4 rounded-none border border-white/40 accent-white cursor-pointer"
                     />
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-zinc-300">
+                    <span className="text-xs font-mono font-bold text-white uppercase">
                       Show Archival EXIF Bar
                     </span>
                     <input
                       type="checkbox"
                       checked={config.posterShowExif}
                       onChange={(e) => updateConfig('posterShowExif', e.target.checked)}
-                      className="w-4 h-4 rounded border-zinc-700 text-amber-500 focus:ring-amber-500 cursor-pointer accent-amber-500"
+                      className="w-4 h-4 rounded-none border border-white/40 accent-white cursor-pointer"
                     />
                   </div>
                 </div>
@@ -726,18 +726,18 @@ export default function ExportStudioModal({
 
               {/* Multi-Image Film Strip Controls */}
               {config.mode === 'FILM_STRIP' && (
-                <div className="space-y-4 pt-4 border-t border-white/10">
+                <div className="space-y-4 pt-4 border-t border-white/20">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-mono tracking-wider text-zinc-400 uppercase">
-                      Strip Orientation & Rails
+                    <label className="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">
+                      04.3 // STRIP ORIENTATION & RAILS
                     </label>
-                    <div className="flex items-center bg-zinc-900 rounded-lg p-0.5 border border-white/10">
+                    <div className="flex items-center bg-black border border-white/20 p-0.5">
                       <button
                         type="button"
                         onClick={() => updateConfig('filmStripOrientation', 'VERTICAL')}
-                        className={`px-2 py-1 rounded text-[10px] font-mono transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1 text-[10px] font-mono font-bold uppercase transition-colors cursor-pointer ${
                           config.filmStripOrientation === 'VERTICAL'
-                            ? 'bg-amber-500 text-black font-semibold'
+                            ? 'bg-white text-black'
                             : 'text-zinc-400 hover:text-white'
                         }`}
                       >
@@ -746,9 +746,9 @@ export default function ExportStudioModal({
                       <button
                         type="button"
                         onClick={() => updateConfig('filmStripOrientation', 'HORIZONTAL')}
-                        className={`px-2 py-1 rounded text-[10px] font-mono transition-colors cursor-pointer ${
+                        className={`px-2.5 py-1 text-[10px] font-mono font-bold uppercase transition-colors cursor-pointer ${
                           config.filmStripOrientation === 'HORIZONTAL'
-                            ? 'bg-amber-500 text-black font-semibold'
+                            ? 'bg-white text-black'
                             : 'text-zinc-400 hover:text-white'
                         }`}
                       >
@@ -758,41 +758,41 @@ export default function ExportStudioModal({
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-zinc-300">
+                    <span className="text-xs font-mono font-bold text-white uppercase">
                       35mm Perforated Sprocket Holes
                     </span>
                     <input
                       type="checkbox"
                       checked={config.filmStripShowSprockets}
                       onChange={(e) => updateConfig('filmStripShowSprockets', e.target.checked)}
-                      className="w-4 h-4 rounded border-zinc-700 text-amber-500 focus:ring-amber-500 cursor-pointer accent-amber-500"
+                      className="w-4 h-4 rounded-none border border-white/40 accent-white cursor-pointer"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-mono text-zinc-500 block mb-1">
-                      EDGE CODE REBATE MARKINGS
+                    <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest block mb-1">
+                      04.4 // EDGE CODE REBATE MARKINGS
                     </label>
                     <input
                       type="text"
                       value={config.filmStripEdgeCode}
                       onChange={(e) => updateConfig('filmStripEdgeCode', e.target.value)}
                       placeholder="e.g. KODAK SAFETY FILM 5063"
-                      className="w-full h-9 px-3 rounded-lg bg-[#080807] border border-white/10 text-xs font-mono text-[#EDE9E2] focus:outline-none focus:border-amber-500/50"
+                      className="w-full h-9 px-3 bg-black border border-white/30 text-xs font-mono text-white focus:outline-none focus:border-white uppercase"
                     />
                   </div>
 
                   {/* Multi-Image Slots */}
                   <div className="pt-2">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-mono text-[#EDE9E2]">
+                      <span className="text-xs font-mono font-bold text-white uppercase">
                         Roll Frames ({filmStripSlots.length} / 6)
                       </span>
                       <button
                         type="button"
                         onClick={() => multiUploadInputRef.current?.click()}
                         disabled={filmStripSlots.length >= 6}
-                        className="px-2.5 py-1.5 rounded-lg bg-[#E59838]/15 border border-[#E59838]/40 hover:bg-[#E59838]/25 text-[#F6C47B] text-xs font-mono flex items-center gap-1.5 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                        className="px-2.5 py-1 bg-white text-black hover:bg-zinc-200 text-[10px] font-mono font-bold uppercase flex items-center gap-1.5 transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                       >
                         <ImagePlus className="w-3.5 h-3.5" />
                         <span>Add Photos</span>
@@ -803,18 +803,18 @@ export default function ExportStudioModal({
                       {filmStripSlots.map((slot, index) => (
                         <div
                           key={slot.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-[#080807] border border-white/10 group hover:border-amber-500/30 transition-colors"
+                          className="flex items-center justify-between p-2 bg-[#080808] border border-white/20 group hover:border-white transition-colors"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-[10px] font-mono text-zinc-500 w-4 text-center">
-                              {index + 1}
+                            <span className="text-[10px] font-mono font-bold text-zinc-400 w-4 text-center">
+                              [{String(index + 1).padStart(2, '0')}]
                             </span>
                             <img
                               src={slot.image.src}
                               alt={slot.title}
-                              className="w-9 h-9 rounded object-cover border border-white/10"
+                              className="w-9 h-9 object-cover border border-white/20 shrink-0"
                             />
-                            <span className="text-xs font-mono text-[#EDE9E2] truncate max-w-[130px]">
+                            <span className="text-xs font-mono font-bold text-white truncate max-w-[130px] uppercase">
                               {slot.title}
                             </span>
                           </div>
@@ -886,8 +886,8 @@ export default function ExportStudioModal({
               </div>
             </div>
 
-            {/* Bottom Actions Bar */}
-            <div className="p-4 border-t border-white/20 bg-black flex items-center gap-3">
+            {/* Bottom Actions Bar (Pinned at bottom) */}
+            <div className="shrink-0 p-3 sm:p-4 border-t border-white/20 bg-black flex items-center gap-3 z-30">
               <button
                 type="button"
                 onClick={handleDownloadPrint}

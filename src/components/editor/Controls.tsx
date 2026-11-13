@@ -121,12 +121,12 @@ export default function Controls() {
   return (
     <div className="flex flex-col h-full bg-black select-none text-white font-mono">
       {/* Numbered Tab Switcher */}
-      <div className="flex border-b border-white/20 bg-[#050505] p-2 gap-1.5">
+      <div className="flex border-b border-white/20 bg-[#050505] p-2 gap-1.5 shrink-0">
         <button
           onClick={() => setActiveTab('film')}
-          className={`flex-1 flex items-center justify-center py-1.5 text-[11px] font-mono font-bold tracking-wider transition-colors cursor-pointer border ${
+          className={`flex-1 flex items-center justify-center py-2 text-[11px] font-mono font-bold tracking-wider transition-colors cursor-pointer border active:scale-98 ${
             activeTab === 'film'
-              ? 'bg-white text-black border-white'
+              ? 'bg-white text-black border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
               : 'bg-black text-zinc-400 hover:text-white border-white/15 hover:border-white/40'
           }`}
         >
@@ -135,9 +135,9 @@ export default function Controls() {
 
         <button
           onClick={() => setActiveTab('tone')}
-          className={`flex-1 flex items-center justify-center py-1.5 text-[11px] font-mono font-bold tracking-wider transition-colors cursor-pointer border ${
+          className={`flex-1 flex items-center justify-center py-2 text-[11px] font-mono font-bold tracking-wider transition-colors cursor-pointer border active:scale-98 ${
             activeTab === 'tone'
-              ? 'bg-white text-black border-white'
+              ? 'bg-white text-black border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
               : 'bg-black text-zinc-400 hover:text-white border-white/15 hover:border-white/40'
           }`}
         >
@@ -146,9 +146,9 @@ export default function Controls() {
 
         <button
           onClick={() => setActiveTab('effects')}
-          className={`flex-1 flex items-center justify-center py-1.5 text-[11px] font-mono font-bold tracking-wider transition-colors cursor-pointer border ${
+          className={`flex-1 flex items-center justify-center py-2 text-[11px] font-mono font-bold tracking-wider transition-colors cursor-pointer border active:scale-98 ${
             activeTab === 'effects'
-              ? 'bg-white text-black border-white'
+              ? 'bg-white text-black border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
               : 'bg-black text-zinc-400 hover:text-white border-white/15 hover:border-white/40'
           }`}
         >

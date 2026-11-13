@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -25,6 +25,7 @@ import {
   PolaroidFilmType,
   POLAROID_PROFILES,
   renderExportComposition,
+  sampleCanvasPalette,
 } from '@/lib/export-renderer';
 
 export interface ExportStudioModalProps {
@@ -69,6 +70,8 @@ export default function ExportStudioModal({
     }).toUpperCase(),
     polaroidShowStockStamp: true,
     polaroidShowRainbow: true,
+    polaroidShowPalette: false,
+    polaroidAccentMode: 'RAINBOW',
     posterHeadline: selectedStock ? selectedStock.name : '35mm Contact Study',
     posterSubheadline: selectedStock
       ? selectedStock.characterNote
@@ -147,6 +150,38 @@ export default function ExportStudioModal({
     },
     []
   );
+
+  // Live 5-color palette dynamically sampled from primary image for UI button swatches
+  const livePaletteSwatches = useMemo(() => {
+    if (!primaryImage) return ['#24211E', '#574B3D', '#8C7458', '#C4A47C', '#E6D7C3'];
+    try {
+      const offscreen = document.createElement('canvas');
+      offscreen.width = 100;
+      offscreen.height = 100;
+      const ctx = offscreen.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(primaryImage, 0, 0, 100, 100);
+        return sampleCanvasPalette(offscreen);
+      }
+    } catch {
+      // fallback
+    }
+    return ['#24211E', '#574B3D', '#8C7458', '#C4A47C', '#E6D7C3'];
+  }, [primaryImage]);
+
+  // Mutually exclusive toggle between Classic Rainbow Bar and 5-Color Film Palette
+  const handleToggleChinAccent = useCallback((mode: 'RAINBOW' | 'PALETTE') => {
+    setConfig((prev) => {
+      const currentMode = prev.polaroidAccentMode || (prev.polaroidShowPalette ? 'PALETTE' : prev.polaroidShowRainbow ? 'RAINBOW' : 'NONE');
+      const nextMode = currentMode === mode ? 'NONE' : mode;
+      return {
+        ...prev,
+        polaroidAccentMode: nextMode,
+        polaroidShowRainbow: nextMode === 'RAINBOW',
+        polaroidShowPalette: nextMode === 'PALETTE',
+      };
+    });
+  }, []);
 
   // Add multiple user-uploaded images to the Film Strip
   const handleAddUploadedFiles = useCallback((files: FileList | null) => {
@@ -585,34 +620,96 @@ export default function ExportStudioModal({
                     </div>
                   </div>
 
-                  {/* Polaroid 600 Rainbow Bar Option */}
-                  {config.polaroidFilmType === 'POLAROID_600' && (
-                    <div className="flex items-center justify-between p-2.5 bg-[#080808] border border-white/20">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-0.5">
-                          <span className="w-1.5 h-3 bg-red-500" />
-                          <span className="w-1.5 h-3 bg-orange-500" />
-                          <span className="w-1.5 h-3 bg-yellow-400" />
-                          <span className="w-1.5 h-3 bg-green-500" />
-                          <span className="w-1.5 h-3 bg-blue-500" />
-                        </div>
-                        <span className="text-xs font-mono font-bold text-white uppercase">
-                          Classic Rainbow Spectrum Bar
-                        </span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={config.polaroidShowRainbow}
-                        onChange={(e) => updateConfig('polaroidShowRainbow', e.target.checked)}
-                        className="w-4 h-4 rounded-none border border-white/40 accent-white cursor-pointer"
-                      />
+                  {/* Chin Accent Graphic Bar: Rainbow Spectrum vs 5-Color Film Palette */}
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">
+                        04.4 // CHIN ACCENT & GRAPHIC BAR
+                      </label>
+                      <span className="text-[9px] font-mono text-zinc-500 uppercase">
+                        [SELECT ONE]
+                      </span>
                     </div>
-                  )}
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Option 1: Classic Rainbow Bar */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleChinAccent('RAINBOW')}
+                        className={`p-2.5 border text-left flex flex-col justify-between gap-2 transition-colors cursor-pointer ${
+                          (config.polaroidAccentMode === 'RAINBOW' || (!config.polaroidAccentMode && config.polaroidShowRainbow))
+                            ? 'bg-white text-black border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
+                            : 'bg-[#080808] border-white/20 text-zinc-300 hover:border-white hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className={`text-[10px] font-mono font-black uppercase ${
+                            (config.polaroidAccentMode === 'RAINBOW' || (!config.polaroidAccentMode && config.polaroidShowRainbow)) ? 'text-black' : 'text-white'
+                          }`}>
+                            [01] RAINBOW BAR
+                          </span>
+                          <div className={`w-3.5 h-3.5 border flex items-center justify-center shrink-0 ${
+                            (config.polaroidAccentMode === 'RAINBOW' || (!config.polaroidAccentMode && config.polaroidShowRainbow))
+                              ? 'border-black bg-black'
+                              : 'border-white/30'
+                          }`}>
+                            {(config.polaroidAccentMode === 'RAINBOW' || (!config.polaroidAccentMode && config.polaroidShowRainbow)) && (
+                              <div className="w-1.5 h-1.5 bg-white" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5">
+                          <span className="w-2.5 h-2.5 bg-[#E53935]" />
+                          <span className="w-2.5 h-2.5 bg-[#FB8C00]" />
+                          <span className="w-2.5 h-2.5 bg-[#FDD835]" />
+                          <span className="w-2.5 h-2.5 bg-[#43A047]" />
+                          <span className="w-2.5 h-2.5 bg-[#1E88E5]" />
+                        </div>
+                      </button>
+
+                      {/* Option 2: 5-Color Film Palette */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleChinAccent('PALETTE')}
+                        className={`p-2.5 border text-left flex flex-col justify-between gap-2 transition-colors cursor-pointer ${
+                          (config.polaroidAccentMode === 'PALETTE' || (!config.polaroidAccentMode && config.polaroidShowPalette))
+                            ? 'bg-white text-black border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.4)]'
+                            : 'bg-[#080808] border-white/20 text-zinc-300 hover:border-white hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className={`text-[10px] font-mono font-black uppercase ${
+                            (config.polaroidAccentMode === 'PALETTE' || (!config.polaroidAccentMode && config.polaroidShowPalette)) ? 'text-black' : 'text-white'
+                          }`}>
+                            [02] 5-COLOR PALETTE
+                          </span>
+                          <div className={`w-3.5 h-3.5 border flex items-center justify-center shrink-0 ${
+                            (config.polaroidAccentMode === 'PALETTE' || (!config.polaroidAccentMode && config.polaroidShowPalette))
+                              ? 'border-black bg-black'
+                              : 'border-white/30'
+                          }`}>
+                            {(config.polaroidAccentMode === 'PALETTE' || (!config.polaroidAccentMode && config.polaroidShowPalette)) && (
+                              <div className="w-1.5 h-1.5 bg-white" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5">
+                          {livePaletteSwatches.map((color, i) => (
+                            <span
+                              key={i}
+                              style={{ backgroundColor: color }}
+                              className="w-2.5 h-2.5 border border-black/30 shrink-0"
+                            />
+                          ))}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
 
                   {/* Custom Chin Caption */}
                   <div>
                     <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest block mb-1">
-                      04.4 // HANDWRITTEN CHIN CAPTION
+                      04.5 // HANDWRITTEN CHIN CAPTION
                     </label>
                     <input
                       type="text"
@@ -626,7 +723,7 @@ export default function ExportStudioModal({
                   {/* Optical Date Stamp */}
                   <div>
                     <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest block mb-1">
-                      04.5 // OPTICAL DATE STAMP
+                      04.6 // OPTICAL DATE STAMP
                     </label>
                     <input
                       type="text"

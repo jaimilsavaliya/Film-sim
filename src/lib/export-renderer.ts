@@ -86,7 +86,7 @@ export const POLAROID_PROFILES: Record<PolaroidFilmType, PolaroidProfile> = {
     photoH: 1077,
     cornerRadius: 0,
     defaultStamp: 'POLAROID i-TYPE · 88×107MM · ISO 640',
-    hasRainbowStripe: false,
+    hasRainbowStripe: true,
     hasPodMarks: false,
     brand: 'polaroid',
   },
@@ -106,7 +106,7 @@ export const POLAROID_PROFILES: Record<PolaroidFilmType, PolaroidProfile> = {
     photoH: 1077,
     cornerRadius: 0,
     defaultStamp: 'POLAROID SX-70 · 88×107MM · ISO 160 · TIME-ZERO',
-    hasRainbowStripe: false,
+    hasRainbowStripe: true,
     hasPodMarks: false,
     brand: 'polaroid',
   },
@@ -126,7 +126,7 @@ export const POLAROID_PROFILES: Record<PolaroidFilmType, PolaroidProfile> = {
     photoH: 854,  // 46.0 / 66.6 * 1236 (authentic 47×46mm ratio!)
     cornerRadius: 16,
     defaultStamp: 'POLAROID GO · 53.9×66.6MM · ISO 640',
-    hasRainbowStripe: false,
+    hasRainbowStripe: true,
     hasPodMarks: false,
     brand: 'polaroid',
   },
@@ -146,7 +146,7 @@ export const POLAROID_PROFILES: Record<PolaroidFilmType, PolaroidProfile> = {
     photoH: 1660,
     cornerRadius: 0,
     defaultStamp: 'POLAROID 810 · LARGE FORMAT 8x10 · ARCHIVAL PRINT',
-    hasRainbowStripe: false,
+    hasRainbowStripe: true,
     hasPodMarks: true,
     brand: 'polaroid',
   },
@@ -166,7 +166,7 @@ export const POLAROID_PROFILES: Record<PolaroidFilmType, PolaroidProfile> = {
     photoH: 1102, // 62 / 85 * 1511 (authentic 46×62mm ratio)
     cornerRadius: 10,
     defaultStamp: 'FUJIFILM INSTAX MINI · 54×85MM · ISO 800',
-    hasRainbowStripe: false,
+    hasRainbowStripe: true,
     hasPodMarks: false,
     brand: 'instax',
   },
@@ -186,7 +186,7 @@ export const POLAROID_PROFILES: Record<PolaroidFilmType, PolaroidProfile> = {
     photoH: 930,  // 62 / 62 square
     cornerRadius: 10,
     defaultStamp: 'FUJIFILM INSTAX SQUARE · 72×86MM · ISO 800',
-    hasRainbowStripe: false,
+    hasRainbowStripe: true,
     hasPodMarks: false,
     brand: 'instax',
   },
@@ -206,7 +206,7 @@ export const POLAROID_PROFILES: Record<PolaroidFilmType, PolaroidProfile> = {
     photoH: 873,  // 62 / 85 * 1196 (wide 99×62mm horizontal)
     cornerRadius: 10,
     defaultStamp: 'FUJIFILM INSTAX WIDE · 108×85MM · ISO 800',
-    hasRainbowStripe: false,
+    hasRainbowStripe: true,
     hasPodMarks: false,
     brand: 'instax',
   },
@@ -226,7 +226,7 @@ export const POLAROID_PROFILES: Record<PolaroidFilmType, PolaroidProfile> = {
     photoH: 1394, // 99 / 108 * 1520 (authentic 4.5mm bottom border: 1520 - 63 - 1394 = 63px)
     cornerRadius: 10,
     defaultStamp: 'FUJIFILM INSTAX WIDE VERTICAL · 85×108MM · ISO 800',
-    hasRainbowStripe: false,
+    hasRainbowStripe: true,
     hasPodMarks: false,
     brand: 'instax',
   },
@@ -252,6 +252,8 @@ export interface ExportStudioConfig {
   polaroidDateStamp: string;
   polaroidShowStockStamp: boolean;
   polaroidShowRainbow: boolean;
+  polaroidShowPalette?: boolean;
+  polaroidAccentMode?: 'NONE' | 'RAINBOW' | 'PALETTE';
   // Poster Options
   posterHeadline: string;
   posterSubheadline: string;
@@ -487,24 +489,51 @@ export function renderExportComposition(
     const chinHeight = cardH - chinTop;
     const scaleFactor = Math.max(0.75, Math.min(1.25, cardH / 1460));
 
-    // Polaroid 600 Rainbow Spectrum Bar
-    const showRainbow = (hasRainbowStripe || filmType === 'POLAROID_600') && config.polaroidShowRainbow !== false;
-    let rainbowBottomY = chinTop;
+    // Polaroid Chin Accent Bar: Classic Rainbow Spectrum Bar vs 5-Color Film Palette Swatches
+    const chinAccent: 'NONE' | 'RAINBOW' | 'PALETTE' =
+      config.polaroidAccentMode ||
+      (config.polaroidShowPalette ? 'PALETTE' : config.polaroidShowRainbow ? 'RAINBOW' : 'NONE');
 
-    if (showRainbow) {
-      const rainbowColors = ['#E53935', '#FB8C00', '#FDD835', '#43A047', '#1E88E5'];
-      const stripeW = Math.round(20 * scaleFactor);
-      const stripeH = Math.round(6 * scaleFactor);
-      const totalW = rainbowColors.length * stripeW;
-      const startX = cardW / 2 - totalW / 2;
-      const rainbowY = chinTop + Math.max(12, Math.round(chinHeight * 0.08));
+    const showRainbow = chinAccent === 'RAINBOW';
+    const showPalette = chinAccent === 'PALETTE';
+    const hasAccent = showRainbow || showPalette;
+    let accentBottomY = chinTop;
 
-      rainbowColors.forEach((col, idx) => {
-        ctx.fillStyle = col;
-        ctx.fillRect(startX + idx * stripeW, rainbowY, stripeW, stripeH);
-      });
+    if (hasAccent && filmType !== 'INSTAX_WIDE_V') {
+      if (showRainbow) {
+        const rainbowColors = ['#E53935', '#FB8C00', '#FDD835', '#43A047', '#1E88E5'];
+        const stripeW = Math.round(20 * scaleFactor);
+        const stripeH = Math.round(6 * scaleFactor);
+        const totalW = rainbowColors.length * stripeW;
+        const startX = cardW / 2 - totalW / 2;
+        const rainbowY = chinTop + Math.max(12, Math.round(chinHeight * 0.08));
 
-      rainbowBottomY = rainbowY + stripeH;
+        rainbowColors.forEach((col, idx) => {
+          ctx.fillStyle = col;
+          ctx.fillRect(startX + idx * stripeW, rainbowY, stripeW, stripeH);
+        });
+
+        accentBottomY = rainbowY + stripeH;
+      } else if (showPalette) {
+        // 5-Color Film Palette Swatches (extracted from graded photo)
+        const swatches = sampleCanvasPalette(gradedPrimary);
+        const swatchSize = Math.round(20 * scaleFactor);
+        const swatchGap = Math.round(6 * scaleFactor);
+        const totalSwatchW = swatches.length * swatchSize + (swatches.length - 1) * swatchGap;
+        const startX = cardW / 2 - totalSwatchW / 2;
+        const swatchY = chinTop + Math.max(12, Math.round(chinHeight * 0.08));
+
+        swatches.forEach((color, idx) => {
+          const x = startX + idx * (swatchSize + swatchGap);
+          ctx.fillStyle = color;
+          ctx.fillRect(x, swatchY, swatchSize, swatchSize);
+          ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, swatchY, swatchSize, swatchSize);
+        });
+
+        accentBottomY = swatchY + swatchSize;
+      }
     }
 
     // Determine content items
@@ -532,6 +561,37 @@ export function renderExportComposition(
       const marginCenterX = marginStartX + marginWidth / 2; // 1066px
       const centerY = padTop + photoH / 2; // 760px
       const maxTextLength = photoH - 80; // 1314px (guarantees text never clips past photo)
+
+      // Classic Rainbow Spectrum Bar or 5-Color Film Palette Swatches at top of right vertical chin
+      if (showRainbow) {
+        const rainbowColors = ['#E53935', '#FB8C00', '#FDD835', '#43A047', '#1E88E5'];
+        const stripeW = Math.round(18 * scaleFactor);
+        const stripeH = Math.round(6 * scaleFactor);
+        const totalW = rainbowColors.length * stripeW;
+        const startX = marginCenterX - totalW / 2;
+        const rainbowY = padTop + 24;
+
+        rainbowColors.forEach((col, idx) => {
+          ctx.fillStyle = col;
+          ctx.fillRect(startX + idx * stripeW, rainbowY, stripeW, stripeH);
+        });
+      } else if (showPalette) {
+        const swatches = sampleCanvasPalette(gradedPrimary);
+        const swatchSize = Math.round(18 * scaleFactor);
+        const swatchGap = Math.round(6 * scaleFactor);
+        const totalSwatchW = swatches.length * swatchSize + (swatches.length - 1) * swatchGap;
+        const startX = marginCenterX - totalSwatchW / 2;
+        const swatchY = padTop + 24;
+
+        swatches.forEach((color, idx) => {
+          const x = startX + idx * (swatchSize + swatchGap);
+          ctx.fillStyle = color;
+          ctx.fillRect(x, swatchY, swatchSize, swatchSize);
+          ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, swatchY, swatchSize, swatchSize);
+        });
+      }
 
       if (hasCaption && hasMeta) {
         // Two parallel vertical tracks in the 260px right margin
@@ -624,10 +684,10 @@ export function renderExportComposition(
     // Calculate usable vertical space in the chin
     // Strictly prevents text from colliding with photo bottom (chinTop) or rainbow bar,
     // and guarantees it never clips off near the card bottom (cardH).
-    const topSafeMargin = showRainbow 
+    const topSafeMargin = hasAccent 
       ? Math.max(16, Math.round(chinHeight * 0.08)) 
       : Math.max(22, Math.round(chinHeight * 0.12));
-    const usableTop = (showRainbow ? rainbowBottomY : chinTop) + topSafeMargin;
+    const usableTop = (hasAccent ? accentBottomY : chinTop) + topSafeMargin;
     const bottomSafeMargin = Math.max(20, Math.round(chinHeight * 0.10));
     const usableBottom = cardH - bottomSafeMargin;
     const usableHeight = Math.max(50, usableBottom - usableTop);
